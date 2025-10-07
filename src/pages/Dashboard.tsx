@@ -16,64 +16,14 @@ import {
   AlertTriangle,
   CheckCircle,
 } from 'lucide-react';
-import { useDashboardQuery, Transaction } from '@/api/dashboard';
+import {
+  useDashboardQuery,
+  Transaction,
+  Goal,
+  Insight,
+  Recommendation,
+} from '@/api/dashboard';
 import { useNavigate } from 'react-router-dom';
-
-const goals = [
-  { name: 'Emergency Fund', current: 7300, target: 10000, color: 'bg-accent' },
-  { name: 'Vacation', current: 2100, target: 5000, color: 'bg-warning' },
-  { name: 'New Car', current: 8500, target: 25000, color: 'bg-success' },
-];
-
-const aiInsights = [
-  {
-    type: 'warning',
-    title: 'Spending Alert',
-    message:
-      'Your food expenses increased by 23% this month. Consider meal planning to reduce costs.',
-    icon: AlertTriangle,
-    color: 'text-warning',
-  },
-  {
-    type: 'success',
-    title: 'Good Progress',
-    message:
-      "You're on track to reach your Emergency Fund goal 2 months early!",
-    icon: CheckCircle,
-    color: 'text-success',
-  },
-  {
-    type: 'tip',
-    title: 'Optimization Tip',
-    message: 'Move $500 from checking to high-yield savings to earn 4.5% APY.',
-    icon: Lightbulb,
-    color: 'text-accent',
-  },
-];
-
-const investmentRecommendations = [
-  {
-    type: 'Conservative',
-    name: 'High-Yield Savings',
-    return: '4.5% APY',
-    risk: 'Low',
-    recommendation: 'Ideal for emergency fund',
-  },
-  {
-    type: 'Moderate',
-    name: 'Index Fund (S&P 500)',
-    return: '10-12% annually',
-    risk: 'Medium',
-    recommendation: 'Good for long-term goals',
-  },
-  {
-    type: 'Growth',
-    name: 'Tech ETF',
-    return: '15-18% annually',
-    risk: 'High',
-    recommendation: 'For aggressive growth',
-  },
-];
 
 // Helper functions untuk format data
 const formatCurrency = (amount: number) => {
@@ -96,6 +46,45 @@ const formatDate = (dateString: string) => {
 
 const getCategoryName = (transaction: Transaction) => {
   return transaction.category?.name || 'Uncategorized';
+};
+
+const getInsightIcon = (insightType: string) => {
+  switch (insightType) {
+    case 'warning':
+      return AlertTriangle;
+    case 'success':
+      return CheckCircle;
+    case 'tip':
+      return Lightbulb;
+    default:
+      return Brain;
+  }
+};
+
+const getInsightColor = (insightType: string) => {
+  switch (insightType) {
+    case 'warning':
+      return 'text-warning';
+    case 'success':
+      return 'text-success';
+    case 'tip':
+      return 'text-accent';
+    default:
+      return 'text-primary';
+  }
+};
+
+const getRecommendationIcon = (type: string) => {
+  switch (type) {
+    case 'spending_optimization':
+      return TrendingDown;
+    case 'investment':
+      return TrendingUp;
+    case 'savings':
+      return Target;
+    default:
+      return Lightbulb;
+  }
 };
 
 export default function Dashboard() {
@@ -320,24 +309,33 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-6">
-              {goals.map((goal) => (
-                <div key={goal.name} className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="font-medium">{goal.name}</span>
-                    <span className="text-muted-foreground">
-                      {formatCurrency(goal.current)} /{' '}
-                      {formatCurrency(goal.target)}
-                    </span>
+              {dashboardData.goals && dashboardData.goals.length > 0 ? (
+                dashboardData.goals.map((goal) => (
+                  <div key={goal.id} className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="font-medium">{goal.name}</span>
+                      <span className="text-muted-foreground">
+                        {formatCurrency(goal.currentAmount)} /{' '}
+                        {formatCurrency(goal.targetAmount)}
+                      </span>
+                    </div>
+                    <Progress
+                      value={(goal.currentAmount / goal.targetAmount) * 100}
+                      className="h-2"
+                    />
+                    <div className="text-xs text-muted-foreground">
+                      {Math.round(
+                        (goal.currentAmount / goal.targetAmount) * 100,
+                      )}
+                      % complete
+                    </div>
                   </div>
-                  <Progress
-                    value={(goal.current / goal.target) * 100}
-                    className="h-2"
-                  />
-                  <div className="text-xs text-muted-foreground">
-                    {Math.round((goal.current / goal.target) * 100)}% complete
-                  </div>
-                </div>
-              ))}
+                ))
+              ) : (
+                <p className="text-muted-foreground text-center py-4">
+                  No goals found. Create your first goal to start saving!
+                </p>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -351,143 +349,218 @@ export default function Dashboard() {
         </div>
 
         <div className="grid gap-4">
-          {aiInsights.map((insight, index) => {
-            const Icon = insight.icon;
-            return (
-              <Card key={index} className="shadow-card">
-                <CardContent className="p-4">
-                  <div className="flex items-start gap-3">
-                    <Icon className={`h-5 w-5 mt-0.5 ${insight.color}`} />
-                    <div className="flex-1">
-                      <h3 className="font-medium mb-1">{insight.title}</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {insight.message}
-                      </p>
+          {dashboardData.insights && dashboardData.insights.length > 0 ? (
+            dashboardData.insights.map((insight) => {
+              const Icon = getInsightIcon(insight.insightType);
+              const color = getInsightColor(insight.insightType);
+              return (
+                <Card key={insight.id} className="shadow-card">
+                  <CardContent className="p-4">
+                    <div className="flex items-start gap-3">
+                      <Icon className={`h-5 w-5 mt-0.5 ${color}`} />
+                      <div className="flex-1">
+                        <h3 className="font-medium mb-1">
+                          {((insight.data as Record<string, unknown>)
+                            ?.title as string) || 'AI Insight'}
+                        </h3>
+                        <p className="text-sm text-muted-foreground">
+                          {((insight.data as Record<string, unknown>)
+                            ?.message as string) || 'No message available'}
+                        </p>
+                        <div className="text-xs text-muted-foreground mt-2">
+                          {formatDate(insight.generatedAt)}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
+                  </CardContent>
+                </Card>
+              );
+            })
+          ) : (
+            <Card className="shadow-card">
+              <CardContent className="p-4 text-center">
+                <Brain className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                <p className="text-muted-foreground">
+                  AI insights akan muncul setelah Anda memiliki lebih banyak
+                  data transaksi.
+                </p>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
 
-      {/* Investment Recommendations */}
+      {/* AI Recommendations */}
       <Card className="shadow-card">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <TrendingUp className="h-5 w-5 text-primary" />
-            Investment Recommendations
+            <Brain className="h-5 w-5 text-primary" />
+            AI Recommendations
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4 md:grid-cols-3">
-            {investmentRecommendations.map((investment, index) => (
-              <div
-                key={index}
-                className="p-4 border border-border rounded-lg space-y-3"
-              >
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h3 className="font-medium">{investment.name}</h3>
-                    <Badge variant="secondary" className="mt-1">
-                      {investment.type}
-                    </Badge>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-lg font-bold text-success">
-                      {investment.return}
+          {dashboardData.recommendations &&
+          dashboardData.recommendations.length > 0 ? (
+            <div className="grid gap-4">
+              {dashboardData.recommendations.map((recommendation, index) => {
+                const Icon = getRecommendationIcon(recommendation.type);
+                return (
+                  <div
+                    key={index}
+                    className="p-4 border border-border rounded-lg space-y-3"
+                  >
+                    <div className="flex items-start gap-3">
+                      <Icon className="h-5 w-5 mt-0.5 text-primary" />
+                      <div className="flex-1">
+                        <div className="flex justify-between items-start mb-2">
+                          <h3 className="font-medium">
+                            {recommendation.title}
+                          </h3>
+                          <Badge
+                            variant={
+                              recommendation.priority === 'high'
+                                ? 'destructive'
+                                : recommendation.priority === 'medium'
+                                ? 'default'
+                                : 'secondary'
+                            }
+                            className="ml-2"
+                          >
+                            {recommendation.priority}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground mb-2">
+                          {recommendation.message}
+                        </p>
+                        {recommendation.amount && (
+                          <div className="text-xs text-muted-foreground">
+                            Amount: {formatCurrency(recommendation.amount)}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    <div className="text-xs text-muted-foreground">
-                      Expected Return
-                    </div>
                   </div>
-                </div>
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span>Risk Level:</span>
-                    <span
-                      className={`font-medium ${
-                        investment.risk === 'Low'
-                          ? 'text-success'
-                          : investment.risk === 'Medium'
-                          ? 'text-warning'
-                          : 'text-destructive'
-                      }`}
-                    >
-                      {investment.risk}
-                    </span>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    {investment.recommendation}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <Brain className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-muted-foreground">
+                AI recommendations akan muncul setelah Anda memiliki data
+                transaksi yang cukup.
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
 
       {/* Goal AI Guidance */}
-      <Card className="shadow-card">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Target className="h-5 w-5 text-primary" />
-            AI Goal Guidance
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="p-4 bg-muted/50 rounded-lg">
-            <div className="flex items-center gap-2 mb-2">
-              <Lightbulb className="h-4 w-4 text-accent" />
-              <span className="font-medium text-sm">Smart Suggestion</span>
-            </div>
-            <p className="text-sm text-muted-foreground mb-3">
-              Based on your current spending patterns, you can reach your
-              Emergency Fund goal faster by:
-            </p>
-            <ul className="text-sm space-y-1 text-muted-foreground">
-              <li>• Reducing food expenses by $200/month (meal planning)</li>
-              <li>• Automating $300/month transfer to savings</li>
-              <li>• Moving funds to 4.5% APY account</li>
-            </ul>
-            <div className="mt-3 pt-3 border-t border-border">
-              <span className="text-sm font-medium text-success">
-                ⚡ This could help you reach your goal 2 months earlier!
-              </span>
-            </div>
-          </div>
+      {dashboardData.goals && dashboardData.goals.length > 0 && (
+        <Card className="shadow-card">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Target className="h-5 w-5 text-primary" />
+              AI Goal Guidance
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {dashboardData.goals.slice(0, 1).map((goal) => {
+              const remaining = goal.targetAmount - goal.currentAmount;
+              const progress = (goal.currentAmount / goal.targetAmount) * 100;
+              const monthlyIncome = dashboardData.totals.income;
+              const monthlyExpenses = dashboardData.totals.expense;
+              const monthlySavings = monthlyIncome - monthlyExpenses;
+              const monthsToGoal =
+                monthlySavings > 0 ? Math.ceil(remaining / monthlySavings) : 0;
 
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="p-3 border border-border rounded-lg">
-              <div className="text-sm font-medium mb-1">Next Milestone</div>
-              <div className="text-xs text-muted-foreground mb-2">
-                Emergency Fund
-              </div>
-              <div className="text-lg font-bold">$2,700 to go</div>
-              <div className="text-xs text-muted-foreground">
-                Estimated: 3 months
-              </div>
-            </div>
+              return (
+                <div key={goal.id}>
+                  <div className="p-4 bg-muted/50 rounded-lg">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Lightbulb className="h-4 w-4 text-accent" />
+                      <span className="font-medium text-sm">
+                        Smart Suggestion untuk {goal.name}
+                      </span>
+                    </div>
+                    <p className="text-sm text-muted-foreground mb-3">
+                      Berdasarkan pola pengeluaran Anda, Anda dapat mencapai
+                      target lebih cepat dengan:
+                    </p>
+                    <ul className="text-sm space-y-1 text-muted-foreground">
+                      <li>• Mengurangi pengeluaran bulanan sebesar 10%</li>
+                      <li>
+                        • Mengotomatiskan transfer ke tabungan setiap bulan
+                      </li>
+                      <li>
+                        • Memindahkan dana ke rekening dengan bunga tinggi
+                      </li>
+                    </ul>
+                    <div className="mt-3 pt-3 border-t border-border">
+                      <span className="text-sm font-medium text-success">
+                        ⚡ Ini bisa membantu Anda mencapai target{' '}
+                        {monthsToGoal > 0
+                          ? `${monthsToGoal - 1} bulan lebih cepat!`
+                          : 'lebih cepat!'}
+                      </span>
+                    </div>
+                  </div>
 
-            <div className="p-3 border border-border rounded-lg">
-              <div className="text-sm font-medium mb-1">Optimization Score</div>
-              <div className="text-xs text-muted-foreground mb-2">
-                Financial Health
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="text-lg font-bold text-success">8.2/10</div>
-                <Badge
-                  variant="outline"
-                  className="text-success border-success"
-                >
-                  Excellent
-                </Badge>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="p-3 border border-border rounded-lg">
+                      <div className="text-sm font-medium mb-1">
+                        Target Tersisa
+                      </div>
+                      <div className="text-xs text-muted-foreground mb-2">
+                        {goal.name}
+                      </div>
+                      <div className="text-lg font-bold">
+                        {formatCurrency(remaining)} tersisa
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        Estimasi:{' '}
+                        {monthsToGoal > 0
+                          ? `${monthsToGoal} bulan`
+                          : 'Tidak dapat diestimasi'}
+                      </div>
+                    </div>
+
+                    <div className="p-3 border border-border rounded-lg">
+                      <div className="text-sm font-medium mb-1">
+                        Progress Score
+                      </div>
+                      <div className="text-xs text-muted-foreground mb-2">
+                        {goal.name}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="text-lg font-bold text-success">
+                          {progress.toFixed(1)}%
+                        </div>
+                        <Badge
+                          variant="outline"
+                          className={
+                            progress >= 80
+                              ? 'text-success border-success'
+                              : progress >= 50
+                              ? 'text-warning border-warning'
+                              : 'text-destructive border-destructive'
+                          }
+                        >
+                          {progress >= 80
+                            ? 'Excellent'
+                            : progress >= 50
+                            ? 'Good'
+                            : 'Needs Work'}
+                        </Badge>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

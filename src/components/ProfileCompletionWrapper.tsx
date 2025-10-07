@@ -12,7 +12,6 @@ export function ProfileCompletionWrapper({
 }) {
   const [showTutorial, setShowTutorial] = useState(false);
   const [showProfileDialog, setShowProfileDialog] = useState(false);
-  const [hasSeenTutorial, setHasSeenTutorial] = useState(false);
   const { user, token } = useAuth();
   const completeProfileMutation = useCompleteProfileMutation();
   const { toast } = useToast();

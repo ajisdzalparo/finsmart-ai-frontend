@@ -8,6 +8,7 @@ import {
 } from 'react';
 import { useDetailUserQuery } from '../api/auth';
 import { getAuthToken, setAuthToken, removeAuthToken } from '../api/auth';
+import { useNavigate } from 'react-router-dom';
 
 interface User {
   name: string;
@@ -31,7 +32,6 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [token, setToken] = useState<string | null>(getAuthToken());
   const [user, setUser] = useState<User | null>(null);
-
   const { data, isLoading, refetch } = useDetailUserQuery(token || '');
 
   useEffect(() => {
@@ -52,6 +52,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     removeAuthToken();
     setToken(null);
     setUser(null);
+    window.location.href = '/login';
   };
 
   return (
