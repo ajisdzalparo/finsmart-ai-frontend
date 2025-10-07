@@ -7,7 +7,10 @@ import React, {
   useState,
 } from 'react';
 
-type CurrencyCode = 'IDR' | 'USD' | 'EUR' | 'GBP' | 'JPY';
+// Standardized to IDR only, but keeping other options commented for future use
+// To restore multi-currency support, uncomment the line below and update related components
+type CurrencyCode = 'IDR';
+// type CurrencyCode = 'IDR' | 'USD' | 'EUR' | 'GBP' | 'JPY';
 
 interface SettingsState {
   currency: CurrencyCode;
@@ -29,7 +32,8 @@ interface SettingsState {
 }
 
 const DEFAULT_CURRENCY: CurrencyCode = 'IDR';
-const DEFAULT_LOCALE = 'id-ID';
+const DEFAULT_LOCALE = 'id-ID'; // Standardized to Indonesian locale
+const DEFAULT_TIMEZONE = 'Asia/Jakarta'; // Standardized to Indonesia timezone
 
 const SettingsContext = createContext<SettingsState | undefined>(undefined);
 
@@ -41,7 +45,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       'deepseek',
   );
   const [timeZone, setTimeZone] = useState<string>(
-    localStorage.getItem('app.time_zone') || 'UTC',
+    localStorage.getItem('app.time_zone') || DEFAULT_TIMEZONE,
   );
   const [notificationEmail, setNotificationEmail] = useState<boolean>(
     localStorage.getItem('app.notif_email') === null

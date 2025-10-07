@@ -492,8 +492,8 @@ export default function Reports() {
                   <Dialog>
                     <DialogTrigger asChild>
                       <Button size="sm" variant="secondary">
-                        Lihat
-                      </Button>
+                    Lihat
+                  </Button>
                     </DialogTrigger>
                     <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
                       <DialogHeader>
@@ -501,47 +501,47 @@ export default function Reports() {
                           Report Detail: {report.reportType}
                         </DialogTitle>
                         <DialogDescription>
-                          Periode:{' '}
+                Periode:{' '}
                           {report.periodStart
                             ? new Date(report.periodStart).toLocaleDateString(
-                                'id-ID',
-                              )
-                            : '-'}{' '}
-                          –{' '}
+                      'id-ID',
+                    )
+                  : '-'}{' '}
+                –{' '}
                           {report.periodEnd
                             ? new Date(report.periodEnd).toLocaleDateString(
-                                'id-ID',
-                              )
-                            : '-'}
+                      'id-ID',
+                    )
+                  : '-'}
                         </DialogDescription>
                       </DialogHeader>
                       <div className="space-y-4">
-                        {/* Render summary berdasarkan tipe */}
-                        {(() => {
+              {/* Render summary berdasarkan tipe */}
+              {(() => {
                           const s = report.summary as unknown;
-                          if (
+                if (
                             report.reportType === 'expense_by_category' &&
-                            typeof s === 'object' &&
-                            s !== null &&
-                            'expenseByCategory' in s
-                          ) {
-                            const rows = (
-                              s as {
-                                expenseByCategory: Array<{
+                  typeof s === 'object' &&
+                  s !== null &&
+                  'expenseByCategory' in s
+                ) {
+                  const rows = (
+                    s as {
+                      expenseByCategory: Array<{
                                   category: string;
-                                  amount: number;
+                        amount: number;
                                   percentage: number;
-                                }>;
-                              }
+                      }>;
+                    }
                             ).expenseByCategory;
-                            return (
+                  return (
                               <div className="space-y-4">
                                 <h4 className="font-semibold">
                                   Pengeluaran per Kategori
                                 </h4>
-                                <div className="overflow-x-auto">
-                                  <table className="w-full text-sm">
-                                    <thead>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
                                       <tr className="border-b">
                                         <th className="text-left p-2">
                                           Kategori
@@ -552,9 +552,9 @@ export default function Reports() {
                                         <th className="text-right p-2">
                                           Persentase
                                         </th>
-                                      </tr>
-                                    </thead>
-                                    <tbody>
+                          </tr>
+                        </thead>
+                        <tbody>
                                       {rows.map((row, idx) => (
                                         <tr key={idx} className="border-b">
                                           <td className="p-2">
@@ -568,31 +568,31 @@ export default function Reports() {
                                               ? row.percentage.toFixed(1)
                                               : '0.0'}
                                             %
-                                          </td>
-                                        </tr>
-                                      ))}
-                                    </tbody>
-                                  </table>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                                 </div>
-                              </div>
-                            );
-                          }
-                          if (
+                    </div>
+                  );
+                }
+                if (
                             report.reportType === 'income_vs_expense' &&
-                            typeof s === 'object' &&
-                            s !== null &&
-                            'totals' in s
-                          ) {
-                            const totals = (
-                              s as {
-                                totals: {
-                                  income: number;
-                                  expense: number;
+                  typeof s === 'object' &&
+                  s !== null &&
+                  'totals' in s
+                ) {
+                  const totals = (
+                    s as {
+                      totals: {
+                        income: number;
+                        expense: number;
                                   net: number;
-                                };
-                              }
-                            ).totals;
-                            return (
+                      };
+                    }
+                  ).totals;
+                  return (
                               <div className="space-y-4">
                                 <h4 className="font-semibold">
                                   Ringkasan Pendapatan vs Pengeluaran
@@ -600,20 +600,20 @@ export default function Reports() {
                                 <div className="grid grid-cols-3 gap-4">
                                   <div className="text-center p-4 bg-green-50 dark:bg-green-950/20 rounded-lg">
                                     <div className="text-2xl font-bold text-green-600">
-                                      {format(Number(totals.income))}
-                                    </div>
+                          {format(Number(totals.income))}
+                        </div>
                                     <div className="text-sm text-muted-foreground">
                                       Pendapatan
-                                    </div>
+                      </div>
                                   </div>
                                   <div className="text-center p-4 bg-red-50 dark:bg-red-950/20 rounded-lg">
                                     <div className="text-2xl font-bold text-red-600">
-                                      {format(Number(totals.expense))}
-                                    </div>
+                          {format(Number(totals.expense))}
+                        </div>
                                     <div className="text-sm text-muted-foreground">
                                       Pengeluaran
-                                    </div>
-                                  </div>
+                      </div>
+                        </div>
                                   <div className="text-center p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
                                     <div className="text-2xl font-bold text-blue-600">
                                       {format(Number(totals.net))}
@@ -622,34 +622,34 @@ export default function Reports() {
                                       Net
                                     </div>
                                   </div>
-                                </div>
-                              </div>
-                            );
-                          }
-                          if (
+                      </div>
+                    </div>
+                  );
+                }
+                if (
                             report.reportType === 'cashflow_monthly' &&
-                            typeof s === 'object' &&
-                            s !== null &&
-                            'cashflowMonthly' in s
-                          ) {
-                            const rows = (
-                              s as {
-                                cashflowMonthly: Array<{
-                                  month: string;
-                                  income: number;
-                                  expense: number;
+                  typeof s === 'object' &&
+                  s !== null &&
+                  'cashflowMonthly' in s
+                ) {
+                  const rows = (
+                    s as {
+                      cashflowMonthly: Array<{
+                        month: string;
+                        income: number;
+                        expense: number;
                                   net: number;
                                 }>;
                               }
                             ).cashflowMonthly;
-                            return (
+                  return (
                               <div className="space-y-4">
                                 <h4 className="font-semibold">
                                   Cashflow Bulanan
                                 </h4>
-                                <div className="overflow-x-auto">
+                    <div className="overflow-x-auto">
                                   <table className="w-full text-sm">
-                                    <thead>
+                        <thead>
                                       <tr className="border-b">
                                         <th className="text-left p-2">Bulan</th>
                                         <th className="text-right p-2">
@@ -659,61 +659,61 @@ export default function Reports() {
                                           Pengeluaran
                                         </th>
                                         <th className="text-right p-2">Net</th>
-                                      </tr>
-                                    </thead>
-                                    <tbody>
+                          </tr>
+                        </thead>
+                        <tbody>
                                       {rows.map((row, idx) => (
                                         <tr key={idx} className="border-b">
                                           <td className="p-2">{row.month}</td>
                                           <td className="text-right p-2 text-green-600">
                                             {format(Number(row.income))}
-                                          </td>
+                              </td>
                                           <td className="text-right p-2 text-red-600">
                                             {format(Number(row.expense))}
-                                          </td>
+                              </td>
                                           <td className="text-right p-2 font-medium">
                                             {format(Number(row.net))}
-                                          </td>
-                                        </tr>
-                                      ))}
-                                    </tbody>
-                                  </table>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                                 </div>
-                              </div>
-                            );
-                          }
-                          // Fallback tampilkan JSON ringkas
-                          return (
+                    </div>
+                  );
+                }
+                // Fallback tampilkan JSON ringkas
+                return (
                             <div className="space-y-4">
                               <h4 className="font-semibold">Data Report</h4>
                               <pre className="text-xs bg-muted/30 p-3 rounded overflow-auto max-h-60">
                                 {JSON.stringify(report.summary, null, 2)}
-                              </pre>
+                  </pre>
                             </div>
-                          );
-                        })()}
+                );
+              })()}
 
                         {/* AI Insights untuk report */}
-                        {(() => {
+              {(() => {
                           const s = report.summary as unknown;
-                          const ai =
+                const ai =
                             typeof s === 'object' &&
                             s !== null &&
                             'aiInsights' in s
-                              ? (
-                                  s as {
-                                    aiInsights?: Array<{
+                    ? (
+                        s as {
+                          aiInsights?: Array<{
                                       type: string;
-                                      title: string;
-                                      message: string;
+                            title: string;
+                            message: string;
                                       priority: string;
-                                    }>;
-                                  }
-                                ).aiInsights
+                          }>;
+                        }
+                      ).aiInsights
                               : null;
 
                           if (ai && ai.length > 0) {
-                            return (
+                return (
                               <div className="space-y-4">
                                 <h4 className="font-semibold">AI Insights</h4>
                                 <div className="space-y-3">
@@ -735,11 +735,11 @@ export default function Reports() {
                                     </div>
                                   ))}
                                 </div>
-                              </div>
-                            );
+                  </div>
+                );
                           }
                           return null;
-                        })()}
+              })()}
                       </div>
                     </DialogContent>
                   </Dialog>
@@ -829,9 +829,9 @@ export default function Reports() {
                 </div>
               </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+            </div>
+          </CardContent>
+        </Card>
 
       {/* Generate New Report */}
       <Card className="shadow-md">

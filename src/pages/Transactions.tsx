@@ -35,6 +35,7 @@ import {
 } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
 import { useCurrencyFormatter } from '@/lib/currency';
+import TransactionOCRUpload from '@/components/transactions/TransactionOCRUpload';
 
 export default function Transactions() {
   const [page, setPage] = useState(1);
@@ -262,214 +263,228 @@ export default function Transactions() {
           </p>
         </div>
 
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogTrigger asChild>
-            <motion.div whileTap={{ scale: 0.95 }}>
-              <Button onClick={resetForm}>
-                <PlusCircle className="h-4 w-4 mr-2" />
-                Tambah Transaksi
-              </Button>
-            </motion.div>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Tambah Transaksi Baru</DialogTitle>
-              <DialogDescription>
-                Tambahkan transaksi pemasukan atau pengeluaran baru
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="description">Deskripsi</Label>
-                <Input
-                  id="description"
-                  placeholder="Masukkan deskripsi transaksi"
-                  value={newTransaction.description}
-                  onChange={(e) => {
-                    setNewTransaction({
-                      ...newTransaction,
-                      description: e.target.value,
-                    });
-                  }}
-                  className={validationError ? 'border-destructive' : ''}
-                />
-                {validationError && (
-                  <div className="flex items-center space-x-2">
-                    <AlertCircle className="h-4 w-4 text-destructive" />
-                    <p className="text-sm text-destructive">
-                      {validationError}
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="amount">Jumlah</Label>
-                <div className="flex items-center gap-3">
+        <div className="flex gap-3">
+          <TransactionOCRUpload
+            onTransactionCreated={() => {
+              // Refresh transactions when new transaction is created
+              window.location.reload();
+            }}
+          />
+          <Dialog
+            open={isCreateDialogOpen}
+            onOpenChange={setIsCreateDialogOpen}
+          >
+            <DialogTrigger asChild>
+              <motion.div whileTap={{ scale: 0.95 }}>
+                <Button onClick={resetForm}>
+                  <PlusCircle className="h-4 w-4 mr-2" />
+                  Tambah Transaksi
+                </Button>
+              </motion.div>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Tambah Transaksi Baru</DialogTitle>
+                <DialogDescription>
+                  Tambahkan transaksi pemasukan atau pengeluaran baru
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="description">Deskripsi</Label>
                   <Input
-                    id="amount"
-                    type="number"
-                    step="0.01"
-                    placeholder="0"
-                    value={newTransaction.amount}
-                    onChange={(e) =>
+                    id="description"
+                    placeholder="Masukkan deskripsi transaksi"
+                    value={newTransaction.description}
+                    onChange={(e) => {
                       setNewTransaction({
                         ...newTransaction,
-                        amount: e.target.value,
+                        description: e.target.value,
+                      });
+                    }}
+                    className={validationError ? 'border-destructive' : ''}
+                  />
+                  {validationError && (
+                    <div className="flex items-center space-x-2">
+                      <AlertCircle className="h-4 w-4 text-destructive" />
+                      <p className="text-sm text-destructive">
+                        {validationError}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="amount">Jumlah</Label>
+                  <div className="flex items-center gap-3">
+                    <Input
+                      id="amount"
+                      type="number"
+                      step="0.01"
+                      placeholder="0"
+                      value={newTransaction.amount}
+                      onChange={(e) =>
+                        setNewTransaction({
+                          ...newTransaction,
+                          amount: e.target.value,
+                        })
+                      }
+                      className="flex-1 min-w-0"
+                    />
+                    {newTransaction.amount && (
+                      <span className="text-[12px] text-muted-foreground whitespace-nowrap">
+                        {format(Math.abs(Number(newTransaction.amount) || 0))}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="category">Kategori</Label>
+                  <Select
+                    value={newTransaction.categoryId}
+                    onValueChange={(value) => {
+                      setNewTransaction({
+                        ...newTransaction,
+                        categoryId: value,
+                      });
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Pilih kategori" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categories?.map((category) => (
+                        <SelectItem key={category.id} value={category.id}>
+                          <div className="flex items-center space-x-2">
+                            <span>{category.icon}</span>
+                            <span>{category.name}</span>
+                            <Badge variant="outline" className="text-xs">
+                              {category.type === 'income'
+                                ? 'Pemasukan'
+                                : category.type === 'expense'
+                                ? 'Pengeluaran'
+                                : 'Transfer'}
+                            </Badge>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="date">Tanggal</Label>
+                  <DatePicker
+                    id="date"
+                    value={newTransaction.transactionDate}
+                    onChange={(val) =>
+                      setNewTransaction({
+                        ...newTransaction,
+                        transactionDate: val,
                       })
                     }
-                    className="flex-1 min-w-0"
                   />
-                  {newTransaction.amount && (
-                    <span className="text-[12px] text-muted-foreground whitespace-nowrap">
-                      {format(Math.abs(Number(newTransaction.amount) || 0))}
-                    </span>
-                  )}
                 </div>
-              </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="category">Kategori</Label>
-                <Select
-                  value={newTransaction.categoryId}
-                  onValueChange={(value) => {
-                    setNewTransaction({ ...newTransaction, categoryId: value });
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Pilih kategori" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categories?.map((category) => (
-                      <SelectItem key={category.id} value={category.id}>
-                        <div className="flex items-center space-x-2">
-                          <span>{category.icon}</span>
-                          <span>{category.name}</span>
-                          <Badge variant="outline" className="text-xs">
-                            {category.type === 'income'
-                              ? 'Pemasukan'
-                              : category.type === 'expense'
-                              ? 'Pengeluaran'
-                              : 'Transfer'}
-                          </Badge>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="date">Tanggal</Label>
-                <DatePicker
-                  id="date"
-                  value={newTransaction.transactionDate}
-                  onChange={(val) =>
-                    setNewTransaction({
-                      ...newTransaction,
-                      transactionDate: val,
-                    })
-                  }
-                />
-              </div>
-
-              {/* Goal Allocations */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label>Alokasi ke Goals (opsional)</Label>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    onClick={() =>
-                      setGoalAllocations((prev) => [
-                        ...prev,
-                        { goalId: '', amount: '' },
-                      ])
-                    }
-                  >
-                    Tambah Alokasi
-                  </Button>
-                </div>
+                {/* Goal Allocations */}
                 <div className="space-y-2">
-                  {goalAllocations.length === 0 && (
-                    <p className="text-xs text-muted-foreground">
-                      Anda dapat membagi jumlah transaksi ke satu atau beberapa
-                      goals.
-                    </p>
-                  )}
-                  {goalAllocations.map((row, idx) => (
-                    <div key={idx} className="grid grid-cols-2 gap-3">
-                      <Select
-                        value={row.goalId}
-                        onValueChange={(val) =>
-                          setGoalAllocations((prev) => {
-                            const next = [...prev];
-                            next[idx] = { ...next[idx], goalId: val };
-                            return next;
-                          })
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Pilih goal" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {goals?.map((g) => (
-                            <SelectItem key={g.id} value={g.id}>
-                              {g.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-
-                      <div className="flex flex-col items-start gap-3">
-                        <Input
-                          type="number"
-                          placeholder="Jumlah"
-                          value={row.amount}
-                          onChange={(e) =>
+                  <div className="flex items-center justify-between">
+                    <Label>Alokasi ke Goals (opsional)</Label>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={() =>
+                        setGoalAllocations((prev) => [
+                          ...prev,
+                          { goalId: '', amount: '' },
+                        ])
+                      }
+                    >
+                      Tambah Alokasi
+                    </Button>
+                  </div>
+                  <div className="space-y-2">
+                    {goalAllocations.length === 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        Anda dapat membagi jumlah transaksi ke satu atau
+                        beberapa goals.
+                      </p>
+                    )}
+                    {goalAllocations.map((row, idx) => (
+                      <div key={idx} className="grid grid-cols-2 gap-3">
+                        <Select
+                          value={row.goalId}
+                          onValueChange={(val) =>
                             setGoalAllocations((prev) => {
                               const next = [...prev];
-                              next[idx] = {
-                                ...next[idx],
-                                amount: e.target.value,
-                              };
+                              next[idx] = { ...next[idx], goalId: val };
                               return next;
                             })
                           }
-                          className="flex-1 min-w-0"
-                        />
-                        {row.amount && (
-                          <span className="text-[12px] text-muted-foreground whitespace-nowrap">
-                            {format(Math.abs(Number(row.amount) || 0))}
-                          </span>
-                        )}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Pilih goal" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {goals?.map((g) => (
+                              <SelectItem key={g.id} value={g.id}>
+                                {g.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+
+                        <div className="flex flex-col items-start gap-3">
+                          <Input
+                            type="number"
+                            placeholder="Jumlah"
+                            value={row.amount}
+                            onChange={(e) =>
+                              setGoalAllocations((prev) => {
+                                const next = [...prev];
+                                next[idx] = {
+                                  ...next[idx],
+                                  amount: e.target.value,
+                                };
+                                return next;
+                              })
+                            }
+                            className="flex-1 min-w-0"
+                          />
+                          {row.amount && (
+                            <span className="text-[12px] text-muted-foreground whitespace-nowrap">
+                              {format(Math.abs(Number(row.amount) || 0))}
+                            </span>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => setIsCreateDialogOpen(false)}
-              >
-                Batal
-              </Button>
-              <Button
-                onClick={handleCreateTransaction}
-                disabled={
-                  createTransactionMutation.isPending || !!validationError
-                }
-              >
-                {createTransactionMutation.isPending
-                  ? 'Menyimpan...'
-                  : 'Tambah Transaksi'}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => setIsCreateDialogOpen(false)}
+                >
+                  Batal
+                </Button>
+                <Button
+                  onClick={handleCreateTransaction}
+                  disabled={
+                    createTransactionMutation.isPending || !!validationError
+                  }
+                >
+                  {createTransactionMutation.isPending
+                    ? 'Menyimpan...'
+                    : 'Tambah Transaksi'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
       </motion.div>
 
       {/* Filters and Search */}
@@ -535,12 +550,12 @@ export default function Transactions() {
                   {},
                 );
 
-                // Sort transactions within each group by date (newest first)
+                // Sort transactions within each group by createdAt (newest first)
                 Object.keys(groups).forEach((key) => {
                   groups[key].sort(
                     (a, b) =>
-                      new Date(b.transactionDate).getTime() -
-                      new Date(a.transactionDate).getTime(),
+                      new Date(b.createdAt).getTime() -
+                      new Date(a.createdAt).getTime(),
                   );
                 });
 

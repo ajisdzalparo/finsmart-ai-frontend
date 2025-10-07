@@ -33,7 +33,9 @@ import {
 } from '@/api/auth';
 import { useToast } from '@/hooks/use-toast';
 
-type CurrencyCode = 'IDR' | 'USD' | 'EUR' | 'GBP' | 'JPY';
+// Standardized to IDR only, but keeping other options commented for future use
+type CurrencyCode = 'IDR';
+// type CurrencyCode = 'IDR' | 'USD' | 'EUR' | 'GBP' | 'JPY';
 
 export default function Settings() {
   const { theme, setTheme } = useTheme();
@@ -542,7 +544,14 @@ export default function Settings() {
               </select>
             </div>
 
-            <div className="space-y-2">
+            {/* 
+              Currency selection removed - standardized to IDR
+              To restore multi-currency support:
+              1. Uncomment the code below
+              2. Update CurrencyCode type in SettingsContext.tsx to include other currencies
+              3. Update currency formatter in lib/currency.ts to handle multiple currencies
+            */}
+            {/* <div className="space-y-2">
               <Label>Currency</Label>
               <select
                 className="w-full p-2 border border-input bg-background rounded-md"
@@ -555,9 +564,13 @@ export default function Settings() {
                 <option value="GBP">GBP (£)</option>
                 <option value="JPY">JPY (¥)</option>
               </select>
-            </div>
+            </div> */}
 
-            <div className="space-y-2">
+            {/* 
+              Locale selection removed - standardized to Indonesian (id-ID)
+              To restore multi-locale support, uncomment the code below
+            */}
+            {/* <div className="space-y-2">
               <Label>Locale</Label>
               <select
                 className="w-full p-2 border border-input bg-background rounded-md"
@@ -570,7 +583,7 @@ export default function Settings() {
                 <option value="ja-JP">日本語 (ja-JP)</option>
                 <option value="de-DE">Deutsch (de-DE)</option>
               </select>
-            </div>
+            </div> */}
 
             <div className="space-y-2">
               <Label>Time Zone</Label>
@@ -579,17 +592,24 @@ export default function Settings() {
                 value={timeZone}
                 onChange={(e) => setTimeZone(e.target.value)}
               >
-                <option value="UTC">UTC</option>
-                <option value="Asia/Jakarta">Asia/Jakarta (WIB)</option>
-                <option value="Asia/Makassar">Asia/Makassar (WITA)</option>
-                <option value="Asia/Jayapura">Asia/Jayapura (WIT)</option>
-                <option value="America/Los_Angeles">
-                  America/Los_Angeles (PST)
+                <option value="Asia/Jakarta">
+                  Asia/Jakarta (WIB - Waktu Indonesia Barat)
                 </option>
-                <option value="America/New_York">America/New_York (EST)</option>
-                <option value="Europe/London">Europe/London (GMT/BST)</option>
-                <option value="Europe/Berlin">Europe/Berlin (CET/CEST)</option>
-                <option value="Asia/Tokyo">Asia/Tokyo (JST)</option>
+                <option value="Asia/Makassar">
+                  Asia/Makassar (WITA - Waktu Indonesia Tengah)
+                </option>
+                <option value="Asia/Jayapura">
+                  Asia/Jayapura (WIT - Waktu Indonesia Timur)
+                </option>
+                {/* 
+                  Other timezone options commented for future use:
+                  <option value="UTC">UTC</option>
+                  <option value="America/Los_Angeles">America/Los_Angeles (PST)</option>
+                  <option value="America/New_York">America/New_York (EST)</option>
+                  <option value="Europe/London">Europe/London (GMT/BST)</option>
+                  <option value="Europe/Berlin">Europe/Berlin (CET/CEST)</option>
+                  <option value="Asia/Tokyo">Asia/Tokyo (JST)</option>
+                */}
               </select>
             </div>
 
