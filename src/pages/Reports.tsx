@@ -29,6 +29,14 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 import { Calendar as CalendarUI } from '@/components/ui/calendar';
 import {
   Select,
@@ -275,12 +283,6 @@ export default function Reports() {
     setDateRange({ from, to });
     setForm((f) => ({ ...f, periodStart: toISO(from), periodEnd: toISO(to) }));
   };
-  const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
-
-  const selectedReport = useMemo(() => {
-    if (!reportsPage?.items || !selectedReportId) return null;
-    return reportsPage.items.find((r) => r.id === selectedReportId) || null;
-  }, [reportsPage, selectedReportId]);
   const getInsightColor = (type: string) => {
     switch (type) {
       case 'positive':
@@ -308,11 +310,7 @@ export default function Reports() {
         </div>
         <Button
           className="bg-primary shadow-md hover:bg-primary/90 flex items-center"
-          onClick={() =>
-            createReport.mutate(form, {
-              onSuccess: (rep) => setSelectedReportId(rep.id),
-            })
-          }
+          onClick={() => createReport.mutate(form)}
         >
           <Download className="h-4 w-4 mr-2" /> Generate Report
         </Button>
@@ -491,13 +489,260 @@ export default function Reports() {
                 </div>
                 <div className="flex items-center space-x-2">
                   <Badge variant="secondary">Ready</Badge>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onClick={() => setSelectedReportId(report.id)}
-                  >
-                    Lihat
-                  </Button>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button size="sm" variant="secondary">
+                        Lihat
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>
+                          Report Detail: {report.reportType}
+                        </DialogTitle>
+                        <DialogDescription>
+                          Periode:{' '}
+                          {report.periodStart
+                            ? new Date(report.periodStart).toLocaleDateString(
+                                'id-ID',
+                              )
+                            : '-'}{' '}
+                          –{' '}
+                          {report.periodEnd
+                            ? new Date(report.periodEnd).toLocaleDateString(
+                                'id-ID',
+                              )
+                            : '-'}
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-4">
+                        {/* Render summary berdasarkan tipe */}
+                        {(() => {
+                          const s = report.summary as unknown;
+                          if (
+                            report.reportType === 'expense_by_category' &&
+                            typeof s === 'object' &&
+                            s !== null &&
+                            'expenseByCategory' in s
+                          ) {
+                            const rows = (
+                              s as {
+                                expenseByCategory: Array<{
+                                  category: string;
+                                  amount: number;
+                                  percentage: number;
+                                }>;
+                              }
+                            ).expenseByCategory;
+                            return (
+                              <div className="space-y-4">
+                                <h4 className="font-semibold">
+                                  Pengeluaran per Kategori
+                                </h4>
+                                <div className="overflow-x-auto">
+                                  <table className="w-full text-sm">
+                                    <thead>
+                                      <tr className="border-b">
+                                        <th className="text-left p-2">
+                                          Kategori
+                                        </th>
+                                        <th className="text-right p-2">
+                                          Jumlah
+                                        </th>
+                                        <th className="text-right p-2">
+                                          Persentase
+                                        </th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {rows.map((row, idx) => (
+                                        <tr key={idx} className="border-b">
+                                          <td className="p-2">
+                                            {row.category}
+                                          </td>
+                                          <td className="text-right p-2">
+                                            {format(Number(row.amount))}
+                                          </td>
+                                          <td className="text-right p-2">
+                                            {row.percentage
+                                              ? row.percentage.toFixed(1)
+                                              : '0.0'}
+                                            %
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            );
+                          }
+                          if (
+                            report.reportType === 'income_vs_expense' &&
+                            typeof s === 'object' &&
+                            s !== null &&
+                            'totals' in s
+                          ) {
+                            const totals = (
+                              s as {
+                                totals: {
+                                  income: number;
+                                  expense: number;
+                                  net: number;
+                                };
+                              }
+                            ).totals;
+                            return (
+                              <div className="space-y-4">
+                                <h4 className="font-semibold">
+                                  Ringkasan Pendapatan vs Pengeluaran
+                                </h4>
+                                <div className="grid grid-cols-3 gap-4">
+                                  <div className="text-center p-4 bg-green-50 dark:bg-green-950/20 rounded-lg">
+                                    <div className="text-2xl font-bold text-green-600">
+                                      {format(Number(totals.income))}
+                                    </div>
+                                    <div className="text-sm text-muted-foreground">
+                                      Pendapatan
+                                    </div>
+                                  </div>
+                                  <div className="text-center p-4 bg-red-50 dark:bg-red-950/20 rounded-lg">
+                                    <div className="text-2xl font-bold text-red-600">
+                                      {format(Number(totals.expense))}
+                                    </div>
+                                    <div className="text-sm text-muted-foreground">
+                                      Pengeluaran
+                                    </div>
+                                  </div>
+                                  <div className="text-center p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
+                                    <div className="text-2xl font-bold text-blue-600">
+                                      {format(Number(totals.net))}
+                                    </div>
+                                    <div className="text-sm text-muted-foreground">
+                                      Net
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          }
+                          if (
+                            report.reportType === 'cashflow_monthly' &&
+                            typeof s === 'object' &&
+                            s !== null &&
+                            'cashflowMonthly' in s
+                          ) {
+                            const rows = (
+                              s as {
+                                cashflowMonthly: Array<{
+                                  month: string;
+                                  income: number;
+                                  expense: number;
+                                  net: number;
+                                }>;
+                              }
+                            ).cashflowMonthly;
+                            return (
+                              <div className="space-y-4">
+                                <h4 className="font-semibold">
+                                  Cashflow Bulanan
+                                </h4>
+                                <div className="overflow-x-auto">
+                                  <table className="w-full text-sm">
+                                    <thead>
+                                      <tr className="border-b">
+                                        <th className="text-left p-2">Bulan</th>
+                                        <th className="text-right p-2">
+                                          Pendapatan
+                                        </th>
+                                        <th className="text-right p-2">
+                                          Pengeluaran
+                                        </th>
+                                        <th className="text-right p-2">Net</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {rows.map((row, idx) => (
+                                        <tr key={idx} className="border-b">
+                                          <td className="p-2">{row.month}</td>
+                                          <td className="text-right p-2 text-green-600">
+                                            {format(Number(row.income))}
+                                          </td>
+                                          <td className="text-right p-2 text-red-600">
+                                            {format(Number(row.expense))}
+                                          </td>
+                                          <td className="text-right p-2 font-medium">
+                                            {format(Number(row.net))}
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            );
+                          }
+                          // Fallback tampilkan JSON ringkas
+                          return (
+                            <div className="space-y-4">
+                              <h4 className="font-semibold">Data Report</h4>
+                              <pre className="text-xs bg-muted/30 p-3 rounded overflow-auto max-h-60">
+                                {JSON.stringify(report.summary, null, 2)}
+                              </pre>
+                            </div>
+                          );
+                        })()}
+
+                        {/* AI Insights untuk report */}
+                        {(() => {
+                          const s = report.summary as unknown;
+                          const ai =
+                            typeof s === 'object' &&
+                            s !== null &&
+                            'aiInsights' in s
+                              ? (
+                                  s as {
+                                    aiInsights?: Array<{
+                                      type: string;
+                                      title: string;
+                                      message: string;
+                                      priority: string;
+                                    }>;
+                                  }
+                                ).aiInsights
+                              : null;
+
+                          if (ai && ai.length > 0) {
+                            return (
+                              <div className="space-y-4">
+                                <h4 className="font-semibold">AI Insights</h4>
+                                <div className="space-y-3">
+                                  {ai.map((insight, idx) => (
+                                    <div
+                                      key={idx}
+                                      className={`p-3 rounded-lg border ${
+                                        insight.priority === 'high'
+                                          ? 'border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950/20'
+                                          : 'border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/20'
+                                      }`}
+                                    >
+                                      <div className="font-medium text-sm">
+                                        {insight.title}
+                                      </div>
+                                      <div className="text-sm text-muted-foreground mt-1">
+                                        {insight.message}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          }
+                          return null;
+                        })()}
+                      </div>
+                    </DialogContent>
+                  </Dialog>
                   <Button
                     size="sm"
                     variant="outline"
@@ -587,217 +832,6 @@ export default function Reports() {
           </div>
         </CardContent>
       </Card>
-
-      {/* Selected Report Detail */}
-      {selectedReport && (
-        <Card className="shadow-md">
-          <CardHeader>
-            <CardTitle>Report Detail: {selectedReport.reportType}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="text-sm text-muted-foreground">
-                Periode:{' '}
-                {selectedReport.periodStart
-                  ? new Date(selectedReport.periodStart).toLocaleDateString(
-                      'id-ID',
-                    )
-                  : '-'}{' '}
-                –{' '}
-                {selectedReport.periodEnd
-                  ? new Date(selectedReport.periodEnd).toLocaleDateString(
-                      'id-ID',
-                    )
-                  : '-'}
-              </div>
-
-              {/* Render summary berdasarkan tipe */}
-              {(() => {
-                const s = selectedReport.summary as unknown;
-                if (
-                  selectedReport.reportType === 'expense_by_category' &&
-                  typeof s === 'object' &&
-                  s !== null &&
-                  'expenseByCategory' in s
-                ) {
-                  const rows = (
-                    s as {
-                      expenseByCategory: Array<{
-                        categoryName: string;
-                        amount: number;
-                      }>;
-                    }
-                  ).expenseByCategory as Array<{
-                    categoryName: string;
-                    amount: number;
-                  }>;
-                  return (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="text-left border-b">
-                            <th className="py-2 pr-4">Kategori</th>
-                            <th className="py-2">Jumlah</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {rows.map((r, i) => (
-                            <tr key={i} className="border-b last:border-b-0">
-                              <td className="py-2 pr-4">{r.categoryName}</td>
-                              <td className="py-2">
-                                {format(Number(r.amount))}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  );
-                }
-                if (
-                  selectedReport.reportType === 'income_vs_expense' &&
-                  typeof s === 'object' &&
-                  s !== null &&
-                  'totals' in s
-                ) {
-                  const totals = (
-                    s as {
-                      totals: {
-                        income: number;
-                        expense: number;
-                        balance: number;
-                      };
-                    }
-                  ).totals;
-                  return (
-                    <div className="grid grid-cols-3 gap-4 text-sm">
-                      <div className="p-3 border rounded">
-                        <div className="text-muted-foreground">Income</div>
-                        <div className="font-semibold">
-                          {format(Number(totals.income))}
-                        </div>
-                      </div>
-                      <div className="p-3 border rounded">
-                        <div className="text-muted-foreground">Expense</div>
-                        <div className="font-semibold">
-                          {format(Number(totals.expense))}
-                        </div>
-                      </div>
-                      <div className="p-3 border rounded">
-                        <div className="text-muted-foreground">Balance</div>
-                        <div className="font-semibold">
-                          {format(Number(totals.balance))}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                }
-                if (
-                  selectedReport.reportType === 'cashflow_monthly' &&
-                  typeof s === 'object' &&
-                  s !== null &&
-                  'cashflowMonthly' in s
-                ) {
-                  const rows = (
-                    s as {
-                      cashflowMonthly: Array<{
-                        month: string;
-                        income: number;
-                        expense: number;
-                        balance: number;
-                      }>;
-                    }
-                  ).cashflowMonthly as Array<{
-                    month: string;
-                    income: number;
-                    expense: number;
-                    balance: number;
-                  }>;
-                  return (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm border border-border rounded-md overflow-hidden">
-                        <thead>
-                          <tr className="text-left bg-muted/40 border-b">
-                            <th className="py-2 pr-4">Bulan</th>
-                            <th className="py-2 pr-4">Income</th>
-                            <th className="py-2 pr-4">Expense</th>
-                            <th className="py-2">Balance</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {rows.map((r, i) => (
-                            <tr
-                              key={i}
-                              className={
-                                i % 2 === 0
-                                  ? 'border-b last:border-b-0'
-                                  : 'bg-muted/20 border-b last:border-b-0'
-                              }
-                            >
-                              <td className="py-2 pr-4">{r.month}</td>
-                              <td className="py-2 pr-4">
-                                {format(Number(r.income))}
-                              </td>
-                              <td className="py-2 pr-4">
-                                {format(Number(r.expense))}
-                              </td>
-                              <td className="py-2">
-                                {format(Number(r.balance))}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  );
-                }
-                // Fallback tampilkan JSON ringkas
-                return (
-                  <pre className="text-xs bg-muted/30 p-3 rounded overflow-auto max-h-80">
-                    {JSON.stringify(selectedReport.summary, null, 2)}
-                  </pre>
-                );
-              })()}
-
-              {/* AI Insights untuk selected report */}
-              {(() => {
-                const s = selectedReport.summary as unknown;
-                const ai =
-                  typeof s === 'object' && s !== null && 'aiInsights' in s
-                    ? (
-                        s as {
-                          aiInsights?: Array<{
-                            title: string;
-                            message: string;
-                            priority?: string;
-                          }>;
-                        }
-                      ).aiInsights
-                    : undefined;
-                if (!ai || ai.length === 0) return null;
-                return (
-                  <div className="mt-4">
-                    <div className="text-sm font-medium mb-2">AI Insights</div>
-                    <ul className="text-sm space-y-1 list-disc list-inside">
-                      {ai.slice(0, 3).map((it, i) => (
-                        <li key={i}>
-                          <span className="font-medium">{it.title}</span>
-                          {it.message ? (
-                            <span className="text-muted-foreground">
-                              {' '}
-                              — {it.message}
-                            </span>
-                          ) : null}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                );
-              })()}
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Generate New Report */}
       <Card className="shadow-md">

@@ -12,14 +12,14 @@ import {
   Target,
   AlertTriangle,
   CheckCircle,
-  RefreshCw,
   Trash2,
   Eye,
 } from 'lucide-react';
 import { aiApi, AIDashboard } from '@/api/ai';
 import { useCurrencyFormatter } from '@/lib/currency';
 import { useToast } from '@/hooks/use-toast';
-import TemplatedChat from '@/components/ai/TemplatedChat';
+import SocketAIChat from '@/components/ai/SocketAIChat';
+import AISchedulerPanel from '@/components/ai/AISchedulerPanel';
 
 export default function AIAssistant() {
   const [dashboard, setDashboard] = useState<AIDashboard | null>(null);
@@ -46,48 +46,6 @@ export default function AIAssistant() {
       });
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const generateNewInsights = async () => {
-    try {
-      setIsGenerating(true);
-      await aiApi.generateInsights();
-      await loadAIDashboard();
-      toast({
-        title: 'Berhasil',
-        description: 'AI insights baru telah dihasilkan',
-      });
-    } catch (error) {
-      console.error('Error generating insights:', error);
-      toast({
-        title: 'Error',
-        description: 'Gagal menghasilkan insights baru',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
-  const generateNewRecommendations = async () => {
-    try {
-      setIsGenerating(true);
-      await aiApi.generateRecommendations();
-      await loadAIDashboard();
-      toast({
-        title: 'Berhasil',
-        description: 'AI recommendations baru telah dihasilkan',
-      });
-    } catch (error) {
-      console.error('Error generating recommendations:', error);
-      toast({
-        title: 'Error',
-        description: 'Gagal menghasilkan recommendations baru',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsGenerating(false);
     }
   };
 
@@ -206,29 +164,6 @@ export default function AIAssistant() {
             Asisten AI untuk analisis finansial Anda
           </p>
         </div>
-        <div className="flex gap-2">
-          <motion.div whileTap={{ scale: 0.95 }}>
-            <Button
-              variant="outline"
-              onClick={generateNewInsights}
-              disabled={isGenerating}
-            >
-              <RefreshCw
-                className={`h-4 w-4 mr-2 ${isGenerating ? 'animate-spin' : ''}`}
-              />
-              Generate Insights
-            </Button>
-          </motion.div>
-          <motion.div whileTap={{ scale: 0.95 }}>
-            <Button
-              onClick={generateNewRecommendations}
-              disabled={isGenerating}
-            >
-              <Brain className="h-4 w-4 mr-2" />
-              Generate Recommendations
-            </Button>
-          </motion.div>
-        </div>
       </motion.div>
 
       {/* Statistics */}
@@ -285,10 +220,11 @@ export default function AIAssistant() {
 
       {/* AI Content */}
       <Tabs defaultValue="insights" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3 bg-gray-200 dark:bg-gray-800">
+        <TabsList className="grid w-full grid-cols-4 bg-gray-200 dark:bg-gray-800">
           <TabsTrigger value="insights">AI Insights</TabsTrigger>
           <TabsTrigger value="recommendations">Recommendations</TabsTrigger>
-          <TabsTrigger value="chat">Chat</TabsTrigger>
+          <TabsTrigger value="realtime">Real-time AI</TabsTrigger>
+          <TabsTrigger value="scheduler">AI Scheduler</TabsTrigger>
         </TabsList>
 
         <TabsContent value="insights" className="space-y-6">
@@ -452,12 +388,9 @@ export default function AIAssistant() {
                     Belum ada AI Insights
                   </h3>
                   <p className="text-muted-foreground mb-4">
-                    Klik "Generate Insights" untuk mendapatkan analisis AI
+                    Gunakan AI Scheduler untuk mengatur generasi insights
+                    otomatis
                   </p>
-                  <Button onClick={generateNewInsights} disabled={isGenerating}>
-                    <Brain className="h-4 w-4 mr-2" />
-                    Generate Insights
-                  </Button>
                 </CardContent>
               </Card>
             )}
@@ -549,24 +482,23 @@ export default function AIAssistant() {
                     Belum ada Recommendations
                   </h3>
                   <p className="text-muted-foreground mb-4">
-                    Klik "Generate Recommendations" untuk mendapatkan saran AI
+                    Gunakan AI Scheduler untuk mengatur generasi recommendations
+                    otomatis
                   </p>
-                  <Button
-                    onClick={generateNewRecommendations}
-                    disabled={isGenerating}
-                  >
-                    <Lightbulb className="h-4 w-4 mr-2" />
-                    Generate Recommendations
-                  </Button>
                 </CardContent>
               </Card>
             )}
           </motion.div>
         </TabsContent>
 
-        {/* Chat AI berbasis template (tanpa input bebas) */}
-        <TabsContent value="chat" className="space-y-6">
-          <TemplatedChat />
+        {/* Real-time AI Chat dengan Socket.IO */}
+        <TabsContent value="realtime" className="space-y-6">
+          <SocketAIChat />
+        </TabsContent>
+
+        {/* AI Scheduler */}
+        <TabsContent value="scheduler" className="space-y-6">
+          <AISchedulerPanel />
         </TabsContent>
       </Tabs>
     </motion.div>

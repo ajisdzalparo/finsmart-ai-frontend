@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -40,10 +41,23 @@ const templates = [
       'overview',
     ],
     icon: Lightbulb,
-    run: async (): Promise<AssistantPayload> => ({
-      kind: 'insights',
-      data: (await aiApi.previewInsights()) as unknown as AIInsight[],
-    }),
+    run: async (): Promise<AssistantPayload> => {
+      try {
+        console.log('Fetching insights...');
+        const insights = await aiApi.previewInsights();
+        console.log('Fetched insights:', insights);
+        return {
+          kind: 'insights',
+          data: insights as unknown as AIInsight[],
+        };
+      } catch (error) {
+        console.error('Error fetching insights:', error);
+        return {
+          kind: 'insights',
+          data: [],
+        };
+      }
+    },
   },
   {
     id: 'recommendations',
@@ -162,12 +176,15 @@ export default function TemplatedChat() {
   const handleTemplateClick = async (tplId: string) => {
     const tpl = templates.find((t) => t.id === tplId);
     if (!tpl) return;
+    console.log('Running template:', tplId);
     setIsRunning(true);
     setMessages((prev) => [...prev, { role: 'user', content: tpl.label }]);
     try {
       const payload = await tpl.run();
+      console.log('Template result:', payload);
       setMessages((prev) => [...prev, { role: 'assistant', payload }]);
     } catch (e) {
+      console.error('Template error:', e);
       // Fallback: tampilkan data tersimpan jika preview gagal
       try {
         if (tplId === 'insights' || tplId === 'goals' || tplId === 'anomaly') {
@@ -271,6 +288,7 @@ export default function TemplatedChat() {
               // assistant
               const p = m.payload;
               if (p.kind === 'insights') {
+                console.log('Rendering insights:', p.data);
                 return (
                   <div key={idx} className="flex items-start gap-2">
                     <Avatar className="h-8 w-8">
@@ -280,20 +298,36 @@ export default function TemplatedChat() {
                     </Avatar>
                     <div className="max-w-[90%] rounded-2xl border bg-muted/40 px-4 py-3 text-sm space-y-2">
                       <div className="font-medium">AI Insights</div>
-                      {p.data.map((it) => (
-                        <div
-                          key={it.id}
-                          className="p-2 border rounded bg-background"
-                        >
-                          <div className="flex items-center justify-between mb-1">
-                            <div className="font-medium">{it.title}</div>
-                            <Badge variant="outline">{it.priority}</Badge>
+                      {p.data && p.data.length > 0 ? (
+                        p.data.map((it: any, index: number) => (
+                          <div
+                            key={it.id || index}
+                            className="p-2 border rounded bg-background"
+                          >
+                            <div className="flex items-center justify-between mb-1">
+                              <div className="font-medium">
+                                {it.title || 'AI Insight'}
+                              </div>
+                              <Badge variant="outline">
+                                {it.priority || 'medium'}
+                              </Badge>
+                            </div>
+                            <div className="text-muted-foreground leading-relaxed break-words whitespace-pre-wrap">
+                              {it.message || 'Tidak ada pesan tersedia'}
+                            </div>
                           </div>
-                          <div className="text-muted-foreground leading-relaxed break-words whitespace-pre-wrap">
-                            {it.message}
+                        ))
+                      ) : (
+                        <div className="p-2 border rounded bg-background text-muted-foreground">
+                          <div className="font-medium">
+                            Tidak ada insights tersedia
+                          </div>
+                          <div className="text-sm">
+                            Coba generate insights baru atau periksa data
+                            transaksi Anda.
                           </div>
                         </div>
-                      ))}
+                      )}
                     </div>
                   </div>
                 );

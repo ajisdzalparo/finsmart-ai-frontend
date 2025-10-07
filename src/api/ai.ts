@@ -54,8 +54,14 @@ export const aiApi = {
   },
   // Preview insights (no DB write)
   previewInsights: async (): Promise<any[]> => {
+    console.log('🔍 [Frontend API] Calling /ai/insights/preview...');
     const response = await api.get('/ai/insights/preview');
-    return response.data?.data ?? response.data;
+    console.log('📥 [Frontend API] Raw response:', response);
+    console.log('📊 [Frontend API] Response data:', response.data);
+    console.log('📋 [Frontend API] Response data.data:', response.data?.data);
+    const result = response.data?.data || [];
+    console.log('✅ [Frontend API] Final result:', result);
+    return result;
   },
 
   // Delete insight
@@ -81,8 +87,14 @@ export const aiApi = {
   },
   // Preview recommendations (no DB write)
   previewRecommendations: async (): Promise<any[]> => {
+    console.log('🔍 [Frontend API] Calling /ai/recommendations/preview...');
     const response = await api.get('/ai/recommendations/preview');
-    return response.data?.data ?? response.data;
+    console.log('📥 [Frontend API] Raw response:', response);
+    console.log('📊 [Frontend API] Response data:', response.data);
+    console.log('📋 [Frontend API] Response data.data:', response.data?.data);
+    const result = response.data?.data || [];
+    console.log('✅ [Frontend API] Final result:', result);
+    return result;
   },
 
   // Mark recommendation as read
@@ -92,8 +104,12 @@ export const aiApi = {
 
   // Get AI dashboard data
   getAIDashboard: async (): Promise<AIDashboard> => {
+    console.log('🔍 [Frontend API] Calling /ai/dashboard...');
     const response = await api.get('/ai/dashboard');
-    const data = response.data as AIDashboard;
+    console.log('📥 [Frontend API] Raw response:', response);
+    console.log('📊 [Frontend API] Response data:', response.data);
+    const data = response.data?.data || (response.data as AIDashboard);
+    console.log('✅ [Frontend API] Final result:', data);
     return {
       ...data,
       recommendations: (data.recommendations || []).map((r) => ({

@@ -534,6 +534,16 @@ export default function Transactions() {
                   },
                   {},
                 );
+
+                // Sort transactions within each group by date (newest first)
+                Object.keys(groups).forEach((key) => {
+                  groups[key].sort(
+                    (a, b) =>
+                      new Date(b.transactionDate).getTime() -
+                      new Date(a.transactionDate).getTime(),
+                  );
+                });
+
                 const sections = Object.entries(groups).sort(
                   (a, b) => new Date(b[0]).getTime() - new Date(a[0]).getTime(),
                 );
