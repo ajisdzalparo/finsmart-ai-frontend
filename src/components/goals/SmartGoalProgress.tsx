@@ -31,6 +31,7 @@ import {
 } from 'lucide-react';
 import { Goal } from '@/api/goals';
 import { useTransactionsQuery } from '@/api/transactions';
+import { useCurrencyFormatter } from '@/lib/currency';
 
 interface SmartGoalProgressProps {
   goal: Goal;
@@ -43,6 +44,7 @@ export function SmartGoalProgress({
   onAddMoney,
   onClose,
 }: SmartGoalProgressProps) {
+  const { format } = useCurrencyFormatter();
   const [amount, setAmount] = useState<number>(0);
   const [selectedTransaction, setSelectedTransaction] = useState<string>('');
   const [activeTab, setActiveTab] = useState<'manual' | 'transaction'>(
@@ -64,11 +66,7 @@ export function SmartGoalProgress({
   const isCompleted = goal.currentAmount >= goal.targetAmount;
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0,
-    }).format(amount);
+    return format(amount);
   };
 
   const getSuggestedAmounts = () => {
@@ -187,13 +185,13 @@ export function SmartGoalProgress({
               <div className="flex justify-between text-sm">
                 <span>Terkumpul</span>
                 <span className="font-medium">
-                  {formatCurrency(goal.currentAmount)}
+                  {format(goal.currentAmount)}
                 </span>
               </div>
               <Progress value={progress} className="h-2" />
               <div className="flex justify-between text-sm text-muted-foreground">
                 <span>{progress.toFixed(1)}%</span>
-                <span>Sisa: {formatCurrency(remainingAmount)}</span>
+                <span>Sisa: {format(remainingAmount)}</span>
               </div>
             </div>
           </div>
@@ -232,7 +230,7 @@ export function SmartGoalProgress({
                 />
                 {amount > 0 && (
                   <p className="text-sm text-muted-foreground mt-1">
-                    {formatCurrency(amount)}
+                    {format(amount)}
                   </p>
                 )}
               </div>
@@ -249,7 +247,7 @@ export function SmartGoalProgress({
                       onClick={() => setAmount(suggestedAmount)}
                       className="text-xs"
                     >
-                      {formatCurrency(suggestedAmount)}
+                      {format(suggestedAmount)}
                     </Button>
                   ))}
                 </div>
@@ -298,7 +296,7 @@ export function SmartGoalProgress({
                                 {transaction.description || 'Transaksi'}
                               </span>
                               <span className="ml-2 text-sm text-muted-foreground">
-                                {formatCurrency(transaction.amount)}
+                                {format(transaction.amount)}
                               </span>
                             </div>
                           </SelectItem>
@@ -319,7 +317,7 @@ export function SmartGoalProgress({
                             }
                           </p>
                           <p className="text-sm text-muted-foreground">
-                            {formatCurrency(
+                            {format(
                               availableTransactions.find(
                                 (t) => t.id === selectedTransaction,
                               )?.amount || 0,

@@ -40,7 +40,7 @@ export const useGoalsQuery = () => {
     queryKey: ['goals'],
     queryFn: async () => {
       const response = await api.get('/goals');
-      return response.data;
+      return response.data?.data ?? response.data;
     },
   });
 };
@@ -50,7 +50,7 @@ export const useGoalQuery = (id: string) => {
     queryKey: ['goals', id],
     queryFn: async () => {
       const response = await api.get(`/goals/${id}`);
-      return response.data;
+      return response.data?.data ?? response.data;
     },
     enabled: !!id,
   });
@@ -62,7 +62,7 @@ export const useCreateGoalMutation = () => {
   return useMutation({
     mutationFn: async (data: CreateGoalData) => {
       const response = await api.post('/goals', data);
-      return response.data;
+      return response.data?.data ?? response.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['goals'] });
@@ -76,7 +76,7 @@ export const useUpdateGoalMutation = () => {
   return useMutation({
     mutationFn: async ({ id, data }: { id: string; data: UpdateGoalData }) => {
       const response = await api.put(`/goals/${id}`, data);
-      return response.data;
+      return response.data?.data ?? response.data;
     },
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: ['goals'] });
@@ -91,7 +91,7 @@ export const useDeleteGoalMutation = () => {
   return useMutation({
     mutationFn: async (id: string) => {
       const response = await api.delete(`/goals/${id}`);
-      return response.data;
+      return response.data?.data ?? response.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['goals'] });
@@ -105,7 +105,7 @@ export const useAddMoneyToGoalMutation = () => {
   return useMutation({
     mutationFn: async ({ id, data }: { id: string; data: AddMoneyData }) => {
       const response = await api.post(`/goals/${id}/add-money`, data);
-      return response.data;
+      return response.data?.data ?? response.data;
     },
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: ['goals'] });

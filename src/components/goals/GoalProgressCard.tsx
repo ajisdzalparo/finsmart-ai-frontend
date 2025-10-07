@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   Calendar,
-  DollarSign,
+  Plus,
   Edit,
   Trash2,
   Home,
@@ -14,6 +14,7 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import { Goal } from '@/api/goals';
+import { useCurrencyFormatter } from '@/lib/currency';
 
 const goalIcons = {
   emergency: Home,
@@ -28,6 +29,7 @@ interface GoalProgressCardProps {
   onAddMoney: (goal: Goal) => void;
   onEdit: (goal: Goal) => void;
   onDelete: (goal: Goal) => void;
+  onViewDetails?: (goal: Goal) => void;
   isDeleting?: boolean;
 }
 
@@ -36,22 +38,20 @@ export function GoalProgressCard({
   onAddMoney,
   onEdit,
   onDelete,
+  onViewDetails,
   isDeleting = false,
 }: GoalProgressCardProps) {
-  const IconComponent = goalIcons[goal.goalType as keyof typeof goalIcons];
-  const percentage = (goal.currentAmount / goal.targetAmount) * 100;
-  const remaining = goal.targetAmount - goal.currentAmount;
+  const { format } = useCurrencyFormatter();
+  const IconComponent =
+    goalIcons[goal.goalType as keyof typeof goalIcons] || TrendingUp;
+  const percentage =
+    (Number(goal.currentAmount) / Number(goal.targetAmount)) * 100;
+  const remaining = Number(goal.targetAmount) - Number(goal.currentAmount);
 
-  const getProgressColor = (percentage: number) => {
-    if (percentage >= 75) return 'text-success';
-    if (percentage >= 50) return 'text-warning';
+  const getProgressColor = (value: number) => {
+    if (value >= 75) return 'text-success';
+    if (value >= 50) return 'text-warning';
     return 'text-destructive';
-  };
-
-  const getProgressBarColor = (percentage: number) => {
-    if (percentage >= 75) return 'bg-success';
-    if (percentage >= 50) return 'bg-warning';
-    return 'bg-destructive';
   };
 
   return (
@@ -69,40 +69,33 @@ export function GoalProgressCard({
                 : 'bg-muted text-muted-foreground'
             }
           >
-            {goal.isActive ? 'Active' : 'Inactive'}
+            {goal.isActive ? 'Aktif' : 'Nonaktif'}
           </Badge>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-2">
           <div className="flex justify-between text-sm">
-            <span>Progress</span>
+            <span>Progres</span>
             <span className={`font-medium ${getProgressColor(percentage)}`}>
               {Math.round(percentage)}%
             </span>
           </div>
-          <div className="relative">
-            <Progress value={percentage} className="h-3" />
-            <div
-              className={`absolute bg-primary top-0 left-0 h-3 rounded-full ${getProgressBarColor(
-                percentage,
-              )}`}
-              style={{ width: `${Math.min(percentage, 100)}%` }}
-            />
-          </div>
+          {/* Gunakan satu komponen progress saja agar tidak dobel layer */}
+          <Progress value={percentage} className="h-2" />
         </div>
 
-        <div className="grid grid-cols-2 gap-4 text-sm">
-          <div>
-            <p className="text-muted-foreground">Current</p>
+        <div className="grid grid-cols-2 gap-4 text-sm justify-items-center">
+          <div className="justify-self-start">
+            <p className="text-muted-foreground">Saat ini</p>
             <p className="font-semibold text-success">
-              ${goal.currentAmount.toLocaleString()}
+              {format(Number(goal.currentAmount))}
             </p>
           </div>
-          <div>
+          <div className="justify-self-end">
             <p className="text-muted-foreground">Target</p>
-            <p className="font-semibold">
-              ${goal.targetAmount.toLocaleString()}
+            <p className="font-semibold justify-self-start">
+              {format(Number(goal.targetAmount))}
             </p>
           </div>
         </div>
@@ -114,17 +107,25 @@ export function GoalProgressCard({
               {new Date(goal.targetDate).toLocaleDateString()}
             </div>
             <div className="text-muted-foreground">
-              ${remaining.toLocaleString()} to go
+              {format(Number(remaining))} lagi
             </div>
           </div>
         )}
 
         <div className="flex gap-2">
-          <Button size="sm" className="flex-1" onClick={() => onAddMoney(goal)}>
-            <DollarSign className="h-3 w-3 mr-1" />
-            Add Money
+          <Button
+            size="sm"
+            variant="outline"
+            className="flex-1"
+            onClick={() => onViewDetails && onViewDetails(goal)}
+          >
+            Detail
           </Button>
-          <Button size="sm" variant="outline" onClick={() => onEdit(goal)}>
+          <Button size="sm" className="flex-1" onClick={() => onAddMoney(goal)}>
+            <Plus className="h-3 w-3 mr-1" />
+            Tambah Dana
+          </Button>
+          <Button size="sm" variant="secondary" onClick={() => onEdit(goal)}>
             <Edit className="h-3 w-3" />
           </Button>
           <Button

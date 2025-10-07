@@ -25,6 +25,7 @@ import { useTheme } from 'next-themes';
 import { useSettings } from '@/context/SettingsContext';
 import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { useCategoriesQuery } from '@/api/categories';
 import {
   useCompleteProfileMutation,
   useUpdateNameMutation,
@@ -32,15 +33,34 @@ import {
 } from '@/api/auth';
 import { useToast } from '@/hooks/use-toast';
 
+type CurrencyCode = 'IDR' | 'USD' | 'EUR' | 'GBP' | 'JPY';
+
 export default function Settings() {
   const { theme, setTheme } = useTheme();
   const { user } = useAuth();
   const { toast } = useToast();
+  const { data: categories } = useCategoriesQuery();
   const completeProfileMutation = useCompleteProfileMutation();
   const updateNameMutation = useUpdateNameMutation();
   const changePasswordMutation = useChangePasswordMutation();
-  const { currency, setCurrency, locale, setLocale, aiModel, setAIModel } =
-    useSettings();
+  const {
+    currency,
+    setCurrency,
+    locale,
+    setLocale,
+    aiModel,
+    setAIModel,
+    timeZone,
+    setTimeZone,
+    notificationEmail,
+    setNotificationEmail,
+    notificationPush,
+    setNotificationPush,
+    notificationGoalReminders,
+    setNotificationGoalReminders,
+    notificationBudgetAlerts,
+    setNotificationBudgetAlerts,
+  } = useSettings();
 
   // Profile completion state
   const [interests, setInterests] = useState<string[]>(user?.interests || []);
@@ -66,18 +86,22 @@ export default function Settings() {
     'Properti',
   ];
 
-  const availableExpenseCategories = [
-    'Makanan',
-    'Transportasi',
-    'Belanja',
-    'Hiburan',
-    'Kesehatan',
-    'Pendidikan',
-    'Tagihan',
-    'Fashion',
-    'Travel',
-    'Lainnya',
-  ];
+  const availableExpenseCategories = (categories || [])
+    .filter((c) => c.type === 'expense' && !c.isDeleted)
+    .map((c) => c.name);
+
+  // Inisialisasi default saat user baru: jika belum ada expenseCategories disimpan,
+  // gunakan semua kategori expense yang tersedia dari API
+  if (
+    expenseCategories.length === 0 &&
+    availableExpenseCategories.length > 0 &&
+    (user?.expenseCategories === undefined ||
+      (user?.expenseCategories || []).length === 0)
+  ) {
+    // set secara sinkron saat render pertama kali ketika data sudah ada
+    // (komponen akan re-render setelah state di-set)
+    setExpenseCategories(availableExpenseCategories);
+  }
 
   const incomeRanges = [
     'Rp 0 - 5 juta',
@@ -158,10 +182,75 @@ export default function Settings() {
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Error',
         description: 'Gagal mengganti password',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleExportData = () => {
+    try {
+      const rows: string[][] = [];
+
+      const pushSection = (title: string) => {
+        rows.push([title]);
+      };
+      const pushKv = (key: string, value: unknown) => {
+        const v = Array.isArray(value) ? value.join('; ') : String(value ?? '');
+        rows.push([key, v]);
+      };
+
+      pushSection('User');
+      pushKv('name', user?.name ?? '');
+      pushKv('email', user?.email ?? '');
+      pushKv('profileCompleted', user?.profileCompleted ?? false);
+      pushKv('interests', user?.interests ?? []);
+      pushKv('incomeRange', user?.incomeRange ?? '');
+      pushKv('expenseCategories', expenseCategories);
+      rows.push(['']);
+
+      pushSection('Settings');
+      pushKv('currency', currency);
+      pushKv('locale', locale);
+      pushKv('aiModel', aiModel);
+      pushKv('timeZone', timeZone);
+      pushKv('notificationEmail', notificationEmail);
+      pushKv('notificationPush', notificationPush);
+      pushKv('notificationGoalReminders', notificationGoalReminders);
+      pushKv('notificationBudgetAlerts', notificationBudgetAlerts);
+
+      const escapeCell = (cell: string) => {
+        const needsQuote = /[",\n]/.test(cell);
+        const escaped = cell.replace(/"/g, '""');
+        return needsQuote ? `"${escaped}"` : escaped;
+      };
+
+      const csvBody = rows
+        .map((r) => r.map((c) => escapeCell(String(c))).join(','))
+        .join('\n');
+      const bom = '\uFEFF'; // BOM agar Excel membaca UTF-8 dengan benar
+      const blob = new Blob([bom + csvBody], {
+        type: 'text/csv;charset=utf-8',
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `finsmart-export-${new Date()
+        .toISOString()
+        .slice(0, 19)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast({
+        title: 'Berhasil',
+        description: 'Data Excel (CSV) berhasil diekspor',
+      });
+    } catch (e) {
+      toast({
+        title: 'Error',
+        description: 'Gagal mengekspor data',
         variant: 'destructive',
       });
     }
@@ -310,7 +399,10 @@ export default function Settings() {
                   Receive updates via email
                 </p>
               </div>
-              <Switch defaultChecked />
+              <Switch
+                checked={notificationEmail}
+                onCheckedChange={(v) => setNotificationEmail(!!v)}
+              />
             </div>
 
             <div className="flex items-center justify-between">
@@ -320,7 +412,10 @@ export default function Settings() {
                   Get notifications on your device
                 </p>
               </div>
-              <Switch defaultChecked />
+              <Switch
+                checked={notificationPush}
+                onCheckedChange={(v) => setNotificationPush(!!v)}
+              />
             </div>
 
             <div className="flex items-center justify-between">
@@ -330,7 +425,10 @@ export default function Settings() {
                   Reminders for savings goals
                 </p>
               </div>
-              <Switch defaultChecked />
+              <Switch
+                checked={notificationGoalReminders}
+                onCheckedChange={(v) => setNotificationGoalReminders(!!v)}
+              />
             </div>
 
             <div className="flex items-center justify-between">
@@ -340,7 +438,10 @@ export default function Settings() {
                   Alerts when approaching budget limits
                 </p>
               </div>
-              <Switch defaultChecked />
+              <Switch
+                checked={notificationBudgetAlerts}
+                onCheckedChange={(v) => setNotificationBudgetAlerts(!!v)}
+              />
             </div>
           </CardContent>
         </Card>
@@ -391,7 +492,17 @@ export default function Settings() {
                   Add extra security to your account
                 </p>
               </div>
-              <Button variant="outline" size="sm">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  toast({
+                    title: 'Segera hadir',
+                    description:
+                      'Dukungan autentikasi dua faktor akan tersedia di rilis berikutnya.',
+                  })
+                }
+              >
                 Enable
               </Button>
             </div>
@@ -436,7 +547,7 @@ export default function Settings() {
               <select
                 className="w-full p-2 border border-input bg-background rounded-md"
                 value={currency}
-                onChange={(e) => setCurrency(e.target.value as any)}
+                onChange={(e) => setCurrency(e.target.value as CurrencyCode)}
               >
                 <option value="IDR">IDR (Rp)</option>
                 <option value="USD">USD ($)</option>
@@ -463,10 +574,22 @@ export default function Settings() {
 
             <div className="space-y-2">
               <Label>Time Zone</Label>
-              <select className="w-full p-2 border border-input bg-background rounded-md">
-                <option value="pst">Pacific Standard Time</option>
-                <option value="est">Eastern Standard Time</option>
-                <option value="utc">UTC</option>
+              <select
+                className="w-full p-2 border border-input bg-background rounded-md"
+                value={timeZone}
+                onChange={(e) => setTimeZone(e.target.value)}
+              >
+                <option value="UTC">UTC</option>
+                <option value="Asia/Jakarta">Asia/Jakarta (WIB)</option>
+                <option value="Asia/Makassar">Asia/Makassar (WITA)</option>
+                <option value="Asia/Jayapura">Asia/Jayapura (WIT)</option>
+                <option value="America/Los_Angeles">
+                  America/Los_Angeles (PST)
+                </option>
+                <option value="America/New_York">America/New_York (EST)</option>
+                <option value="Europe/London">Europe/London (GMT/BST)</option>
+                <option value="Europe/Berlin">Europe/Berlin (CET/CEST)</option>
+                <option value="Asia/Tokyo">Asia/Tokyo (JST)</option>
               </select>
             </div>
 
@@ -493,15 +616,39 @@ export default function Settings() {
         </CardHeader>
         <CardContent>
           <div className="grid gap-4 md:grid-cols-3">
-            <Button variant="outline" className="flex items-center">
+            <Button
+              variant="outline"
+              className="flex items-center"
+              onClick={handleExportData}
+            >
               <Download className="h-4 w-4 mr-2" />
               Export Data
             </Button>
-            <Button variant="outline" className="flex items-center">
+            <Button
+              variant="outline"
+              className="flex items-center"
+              onClick={() =>
+                toast({
+                  title: 'Segera hadir',
+                  description:
+                    'Kebijakan privasi akan tersedia di rilis berikutnya.',
+                })
+              }
+            >
               <Shield className="h-4 w-4 mr-2" />
               Privacy Policy
             </Button>
-            <Button variant="destructive" className="flex items-center">
+            <Button
+              variant="destructive"
+              className="flex items-center"
+              onClick={() =>
+                toast({
+                  title: 'Segera hadir',
+                  description:
+                    'Hapus akun belum tersedia. Hubungi support untuk bantuan.',
+                })
+              }
+            >
               Delete Account
             </Button>
           </div>

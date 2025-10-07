@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -12,12 +13,23 @@ import {
   FileText,
 } from 'lucide-react';
 import { exportReportToExcel } from '@/lib/export';
+import { useCurrencyFormatter } from '@/lib/currency';
 
-import { Bar, Pie, Line } from 'react-chartjs-2';
+import { Pie, Line } from 'react-chartjs-2';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { reportsApi, type Report } from '@/api/reports';
+import {
+  reportsApi,
+  type Report,
+  type ReportsPaginatedResponse,
+} from '@/api/reports';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { Calendar as CalendarUI } from '@/components/ui/calendar';
 import {
   Select,
   SelectContent,
@@ -37,6 +49,7 @@ import {
   Tooltip,
   Legend,
 } from 'chart.js';
+import type { DateRange } from 'react-day-picker';
 
 ChartJS.register(
   CategoryScale,
@@ -136,11 +149,11 @@ const insights = [
 
 // Report type now imported from api module
 
-function useReportsQuery() {
-  return useQuery<Report[]>({
-    queryKey: ['reports'],
+function useReportsPaginatedQuery(page: number, limit: number) {
+  return useQuery<ReportsPaginatedResponse>({
+    queryKey: ['reports', 'list', page, limit],
     queryFn: async () => {
-      return await reportsApi.list();
+      return await reportsApi.listPaginated(page, limit);
     },
   });
 }
@@ -163,6 +176,9 @@ function useCreateReportMutation() {
 }
 
 export default function Reports() {
+  const { format } = useCurrencyFormatter();
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
   const [lineData, setLineData] = useState(lineDataPlaceholder);
   const [categoryRows, setCategoryRows] = useState<
     Array<{ categoryName: string; amount: number }>
@@ -226,7 +242,8 @@ export default function Reports() {
       isMounted = false;
     };
   }, []);
-  const { data: reports } = useReportsQuery();
+  const reportsQuery = useReportsPaginatedQuery(page, limit);
+  const reportsPage = reportsQuery.data as ReportsPaginatedResponse | undefined;
   const createReport = useCreateReportMutation();
   const [form, setForm] = useState({
     reportType: 'expense_by_category',
@@ -234,12 +251,36 @@ export default function Reports() {
     periodEnd: '',
     exportFormat: 'json',
   });
+  const [dateRange, setDateRange] = useState<DateRange>({
+    from: undefined,
+    to: undefined,
+  });
+
+  const formatDateLabel = (d?: Date) =>
+    d
+      ? new Date(d).toLocaleDateString('id-ID', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+        })
+      : '';
+  const toISO = (d?: Date) =>
+    d
+      ? new Date(d.getTime() - d.getTimezoneOffset() * 60000)
+          .toISOString()
+          .slice(0, 10)
+      : '';
+
+  const applyRange = (from?: Date, to?: Date) => {
+    setDateRange({ from, to });
+    setForm((f) => ({ ...f, periodStart: toISO(from), periodEnd: toISO(to) }));
+  };
   const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
 
   const selectedReport = useMemo(() => {
-    if (!reports || !selectedReportId) return null;
-    return reports.find((r) => r.id === selectedReportId) || null;
-  }, [reports, selectedReportId]);
+    if (!reportsPage?.items || !selectedReportId) return null;
+    return reportsPage.items.find((r) => r.id === selectedReportId) || null;
+  }, [reportsPage, selectedReportId]);
   const getInsightColor = (type: string) => {
     switch (type) {
       case 'positive':
@@ -352,15 +393,14 @@ export default function Reports() {
                               />
                             </div>
                             <div className="w-36 text-right text-sm">
-                              Rp {Number(r.amount).toLocaleString('id-ID')} (
-                              {pct.toFixed(1)}%)
+                              {format(Number(r.amount))} ({pct.toFixed(1)}%)
                             </div>
                           </div>
                         );
                       })}
                       {total > 0 ? (
                         <div className="text-xs text-muted-foreground mt-2">
-                          Total pengeluaran: Rp {total.toLocaleString('id-ID')}
+                          Total pengeluaran: {format(Number(total))}
                         </div>
                       ) : null}
                     </div>
@@ -372,6 +412,8 @@ export default function Reports() {
         </Card>
       </div>
 
+      {/* AI Assistant removed as requested */}
+
       {/* Available Reports */}
       <Card className="shadow-md">
         <CardHeader>
@@ -379,7 +421,7 @@ export default function Reports() {
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {(reports || []).map((report, idx) => (
+            {(reportsPage?.items || []).map((report, idx) => (
               <div
                 key={idx}
                 className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/30 dark:hover:bg-muted/40 transition-colors"
@@ -466,6 +508,82 @@ export default function Reports() {
                 </div>
               </div>
             ))}
+            {/* Pagination Controls */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
+              <div className="text-sm text-muted-foreground">
+                {(() => {
+                  const total = reportsPage?.pagination.total || 0;
+                  const from = total === 0 ? 0 : (page - 1) * limit + 1;
+                  const to = Math.min(page * limit, total);
+                  const totalPages = reportsPage?.pagination.totalPages || 1;
+                  return `Menampilkan ${from}–${to} dari ${total} (Hal ${page} / ${totalPages})`;
+                })()}
+              </div>
+              <div className="flex items-center gap-2">
+                <Select
+                  value={String(limit)}
+                  onValueChange={(val) => {
+                    const next = Number(val);
+                    setLimit(next);
+                    setPage(1);
+                  }}
+                >
+                  <SelectTrigger className="w-28">
+                    <SelectValue placeholder="Baris / halaman" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[10, 20, 50].map((opt) => (
+                      <SelectItem key={opt} value={String(opt)}>
+                        {opt} / halaman
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage(1)}
+                    disabled={page === 1}
+                  >
+                    « Pertama
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    disabled={page === 1}
+                  >
+                    ‹ Sebelumnya
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setPage((p) =>
+                        Math.min(
+                          reportsPage?.pagination.totalPages || 1,
+                          p + 1,
+                        ),
+                      )
+                    }
+                    disabled={page >= (reportsPage?.pagination.totalPages || 1)}
+                  >
+                    Selanjutnya ›
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setPage(reportsPage?.pagination.totalPages || 1)
+                    }
+                    disabled={page >= (reportsPage?.pagination.totalPages || 1)}
+                  >
+                    Terakhir »
+                  </Button>
+                </div>
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -527,7 +645,7 @@ export default function Reports() {
                             <tr key={i} className="border-b last:border-b-0">
                               <td className="py-2 pr-4">{r.categoryName}</td>
                               <td className="py-2">
-                                Rp {Number(r.amount).toLocaleString('id-ID')}
+                                {format(Number(r.amount))}
                               </td>
                             </tr>
                           ))}
@@ -556,19 +674,19 @@ export default function Reports() {
                       <div className="p-3 border rounded">
                         <div className="text-muted-foreground">Income</div>
                         <div className="font-semibold">
-                          Rp {Number(totals.income).toLocaleString('id-ID')}
+                          {format(Number(totals.income))}
                         </div>
                       </div>
                       <div className="p-3 border rounded">
                         <div className="text-muted-foreground">Expense</div>
                         <div className="font-semibold">
-                          Rp {Number(totals.expense).toLocaleString('id-ID')}
+                          {format(Number(totals.expense))}
                         </div>
                       </div>
                       <div className="p-3 border rounded">
                         <div className="text-muted-foreground">Balance</div>
                         <div className="font-semibold">
-                          Rp {Number(totals.balance).toLocaleString('id-ID')}
+                          {format(Number(totals.balance))}
                         </div>
                       </div>
                     </div>
@@ -597,9 +715,9 @@ export default function Reports() {
                   }>;
                   return (
                     <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
+                      <table className="w-full text-sm border border-border rounded-md overflow-hidden">
                         <thead>
-                          <tr className="text-left border-b">
+                          <tr className="text-left bg-muted/40 border-b">
                             <th className="py-2 pr-4">Bulan</th>
                             <th className="py-2 pr-4">Income</th>
                             <th className="py-2 pr-4">Expense</th>
@@ -608,16 +726,23 @@ export default function Reports() {
                         </thead>
                         <tbody>
                           {rows.map((r, i) => (
-                            <tr key={i} className="border-b last:border-b-0">
+                            <tr
+                              key={i}
+                              className={
+                                i % 2 === 0
+                                  ? 'border-b last:border-b-0'
+                                  : 'bg-muted/20 border-b last:border-b-0'
+                              }
+                            >
                               <td className="py-2 pr-4">{r.month}</td>
                               <td className="py-2 pr-4">
-                                Rp {Number(r.income).toLocaleString('id-ID')}
+                                {format(Number(r.income))}
                               </td>
                               <td className="py-2 pr-4">
-                                Rp {Number(r.expense).toLocaleString('id-ID')}
+                                {format(Number(r.expense))}
                               </td>
                               <td className="py-2">
-                                Rp {Number(r.balance).toLocaleString('id-ID')}
+                                {format(Number(r.balance))}
                               </td>
                             </tr>
                           ))}
@@ -703,25 +828,90 @@ export default function Reports() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label>Dari</Label>
-              <Input
-                type="date"
-                value={form.periodStart}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, periodStart: e.target.value }))
-                }
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Sampai</Label>
-              <Input
-                type="date"
-                value={form.periodEnd}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, periodEnd: e.target.value }))
-                }
-              />
+            <div className="space-y-2 md:col-span-2">
+              <Label>Periode</Label>
+              <div className="flex items-center gap-2">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-start">
+                      <Calendar className="mr-2 h-4 w-4" />
+                      {dateRange.from || dateRange.to
+                        ? `${formatDateLabel(
+                            dateRange.from,
+                          )} – ${formatDateLabel(dateRange.to)}`
+                        : 'Pilih rentang tanggal'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent align="start" className="w-auto p-0">
+                    <div className="p-3">
+                      <CalendarUI
+                        mode="range"
+                        selected={dateRange}
+                        onSelect={(r: DateRange | undefined) =>
+                          applyRange(r?.from, r?.to)
+                        }
+                        numberOfMonths={2}
+                        showOutsideDays
+                      />
+                      <div className="mt-3 grid grid-cols-2 gap-2">
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() =>
+                            applyRange(
+                              new Date(
+                                new Date().getFullYear(),
+                                new Date().getMonth(),
+                                1,
+                              ),
+                              new Date(),
+                            )
+                          }
+                        >
+                          Bulan ini
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => {
+                            const now = new Date();
+                            const start = new Date(
+                              now.getFullYear(),
+                              now.getMonth() - 1,
+                              1,
+                            );
+                            const end = new Date(
+                              now.getFullYear(),
+                              now.getMonth(),
+                              0,
+                            );
+                            applyRange(start, end);
+                          }}
+                        >
+                          Bulan lalu
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => applyRange(undefined, undefined)}
+                        >
+                          Reset
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => {
+                            const now = new Date();
+                            applyRange(new Date(now.getFullYear(), 0, 1), now);
+                          }}
+                        >
+                          YTD
+                        </Button>
+                      </div>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
             </div>
             <div className="space-y-2 flex items-end">
               <Button

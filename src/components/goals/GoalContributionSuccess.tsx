@@ -1,15 +1,16 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { 
-  CheckCircle, 
-  PiggyBank, 
-  TrendingUp, 
+import { useCurrencyFormatter } from '@/lib/currency';
+import {
+  CheckCircle,
+  PiggyBank,
+  TrendingUp,
   Target,
   Calendar,
   DollarSign,
-  ArrowRight
+  ArrowRight,
 } from 'lucide-react';
 import { Goal } from '@/api/goals';
 
@@ -21,19 +22,16 @@ interface GoalContributionSuccessProps {
   onClose: () => void;
 }
 
-export function GoalContributionSuccess({ 
-  goal, 
-  contributionAmount, 
+export function GoalContributionSuccess({
+  goal,
+  contributionAmount,
   transactionId,
   onViewTransactions,
-  onClose 
+  onClose,
 }: GoalContributionSuccessProps) {
+  const { format } = useCurrencyFormatter();
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0,
-    }).format(amount);
+    return format(amount);
   };
 
   const progress = (goal.currentAmount / goal.targetAmount) * 100;
@@ -47,36 +45,36 @@ export function GoalContributionSuccess({
         title: 'Goal Tercapai! 🎉',
         description: 'Selamat! Anda telah mencapai target goal ini.',
         color: 'text-green-600',
-        bgColor: 'bg-green-50'
+        bgColor: 'bg-green-50',
       };
     }
-    
+
     if (progress >= 75) {
       return {
         icon: TrendingUp,
         title: 'Hampir Selesai!',
         description: 'Goal Anda sudah hampir tercapai. Tinggal sedikit lagi!',
         color: 'text-blue-600',
-        bgColor: 'bg-blue-50'
+        bgColor: 'bg-blue-50',
       };
     }
-    
+
     if (progress >= 50) {
       return {
         icon: Target,
         title: 'Setengah Jalan',
         description: 'Bagus! Anda sudah mencapai setengah dari target.',
         color: 'text-yellow-600',
-        bgColor: 'bg-yellow-50'
+        bgColor: 'bg-yellow-50',
       };
     }
-    
+
     return {
       icon: PiggyBank,
       title: 'Langkah Awal',
       description: 'Kontribusi pertama Anda ke goal ini. Terus semangat!',
       color: 'text-gray-600',
-      bgColor: 'bg-gray-50'
+      bgColor: 'bg-gray-50',
     };
   };
 
@@ -90,7 +88,9 @@ export function GoalContributionSuccess({
         <div className="w-16 h-16 mx-auto mb-4 bg-green-100 rounded-full flex items-center justify-center">
           <CheckCircle className="w-8 h-8 text-green-600" />
         </div>
-        <h3 className="text-xl font-semibold text-green-800">Kontribusi Berhasil!</h3>
+        <h3 className="text-xl font-semibold text-green-800">
+          Kontribusi Berhasil!
+        </h3>
         <p className="text-muted-foreground">
           Uang telah ditambahkan ke goal "{goal.name}"
         </p>
@@ -108,7 +108,7 @@ export function GoalContributionSuccess({
           <div className="flex justify-between">
             <span>Jumlah Kontribusi:</span>
             <span className="font-bold text-green-600">
-              +{formatCurrency(contributionAmount)}
+              +{format(contributionAmount)}
             </span>
           </div>
           <div className="flex justify-between">
@@ -117,7 +117,9 @@ export function GoalContributionSuccess({
           </div>
           <div className="flex justify-between">
             <span>ID Transaksi:</span>
-            <span className="font-mono text-sm">{transactionId.slice(0, 8)}...</span>
+            <span className="font-mono text-sm">
+              {transactionId.slice(0, 8)}...
+            </span>
           </div>
           <div className="flex justify-between">
             <span>Status:</span>
@@ -141,9 +143,13 @@ export function GoalContributionSuccess({
           <div className={`p-4 rounded-lg ${status.bgColor}`}>
             <div className="flex items-center gap-2 mb-2">
               <StatusIcon className={`w-5 h-5 ${status.color}`} />
-              <span className={`font-medium ${status.color}`}>{status.title}</span>
+              <span className={`font-medium ${status.color}`}>
+                {status.title}
+              </span>
             </div>
-            <p className="text-sm text-muted-foreground">{status.description}</p>
+            <p className="text-sm text-muted-foreground">
+              {status.description}
+            </p>
           </div>
 
           <div className="space-y-2">
@@ -153,7 +159,7 @@ export function GoalContributionSuccess({
             </div>
             <Progress value={progress} className="h-3" />
             <div className="flex justify-between text-sm text-muted-foreground">
-              <span>{formatCurrency(goal.currentAmount)} terkumpul</span>
+              <span>{format(goal.currentAmount)} terkumpul</span>
               <span>Target: {formatCurrency(goal.targetAmount)}</span>
             </div>
           </div>
@@ -162,10 +168,12 @@ export function GoalContributionSuccess({
             <div className="p-3 bg-muted rounded-lg">
               <div className="flex items-center gap-2 mb-1">
                 <Calendar className="w-4 h-4 text-muted-foreground" />
-                <span className="text-sm font-medium">Sisa yang dibutuhkan:</span>
+                <span className="text-sm font-medium">
+                  Sisa yang dibutuhkan:
+                </span>
               </div>
               <p className="text-lg font-bold text-orange-600">
-                {formatCurrency(remainingAmount)}
+                {format(remainingAmount)}
               </p>
             </div>
           )}
@@ -186,9 +194,9 @@ export function GoalContributionSuccess({
                 Lihat semua kontribusi yang pernah Anda lakukan
               </p>
             </div>
-            <Button 
-              variant="outline" 
-              size="sm" 
+            <Button
+              variant="outline"
+              size="sm"
               onClick={onViewTransactions}
               className="ml-auto"
             >

@@ -409,9 +409,9 @@ export function ProfileCompletionWizard({
               {INTERESTS.map((interest, index) => (
                 <div
                   key={interest.id}
-                  className={`group relative p-4 rounded-xl border-2 transition-all duration-300 cursor-pointer hover:scale-100 hover:shadow-lg ${
+                  className={`group relative p-4 rounded-xl border-2 transition-all duration-300 cursor-pointer hover:shadow-lg ${
                     interests.includes(interest.id)
-                      ? 'border-primary bg-primary/5 shadow-md scale-100'
+                      ? 'border-primary bg-primary/5 shadow-md'
                       : 'border-border hover:border-primary/50'
                   }`}
                   onClick={() =>
@@ -493,9 +493,9 @@ export function ProfileCompletionWizard({
                 {INCOME_RANGES.map((range, index) => (
                   <div
                     key={range.value}
-                    className={`group relative p-4 rounded-xl border-2 transition-all duration-300 cursor-pointer hover:scale-100 hover:shadow-lg ${
+                    className={`group relative p-4 rounded-xl border-2 transition-all duration-300 cursor-pointer hover:shadow-lg ${
                       incomeRange === range.value
-                        ? 'border-success bg-success/5 shadow-md scale-100'
+                        ? 'border-success bg-success/5 shadow-md'
                         : 'border-border hover:border-success/50'
                     }`}
                     onClick={() => setIncomeRange(range.value)}
@@ -565,9 +565,9 @@ export function ProfileCompletionWizard({
               {EXPENSE_CATEGORIES.map((category, index) => (
                 <div
                   key={category.id}
-                  className={`group relative p-4 rounded-xl border-2 transition-all duration-300 cursor-pointer hover:scale-100 hover:shadow-lg ${
+                  className={`group relative p-4 rounded-xl border-2 transition-all duration-300 cursor-pointer hover:shadow-lg ${
                     expenseCategories.includes(category.id)
-                      ? 'border-warning bg-warning/5 shadow-md scale-100'
+                      ? 'border-warning bg-warning/5 shadow-md'
                       : 'border-border hover:border-warning/50'
                   }`}
                   onClick={() =>
@@ -683,7 +683,7 @@ export function ProfileCompletionWizard({
                 <Button
                   variant="outline"
                   onClick={handlePrev}
-                  className="group hover:scale-105 transition-all duration-200"
+                  className="group transition-all duration-200"
                 >
                   <ArrowLeft className="h-4 w-4 mr-2 group-hover:-translate-x-1 transition-transform" />
                   Sebelumnya
@@ -705,7 +705,7 @@ export function ProfileCompletionWizard({
                 <Button
                   onClick={handleNext}
                   disabled={!canProceed()}
-                  className="group bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105"
+                  className="group bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg hover:shadow-xl transition-all duration-200"
                 >
                   Selanjutnya
                   <ArrowRight className="h-4 w-4 ml-2 group-hover:translate-x-1 transition-transform" />
@@ -714,7 +714,7 @@ export function ProfileCompletionWizard({
                 <Button
                   onClick={handleSubmit}
                   disabled={!canProceed() || isSubmitting}
-                  className="group bg-gradient-to-r from-success to-success/80 hover:from-success/90 hover:to-success/70 shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105"
+                  className="group bg-gradient-to-r from-success to-success/80 hover:from-success/90 hover:to-success/70 shadow-lg hover:shadow-xl transition-all duration-200"
                 >
                   {isSubmitting ? (
                     <>
@@ -723,7 +723,7 @@ export function ProfileCompletionWizard({
                     </>
                   ) : (
                     <>
-                      <Check className="h-4 w-4 mr-2 group-hover:scale-110 transition-transform" />
+                      <Check className="h-4 w-4 mr-2 transition-transform" />
                       Selesai
                     </>
                   )}

@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,11 +15,11 @@ import {
   RefreshCw,
   Trash2,
   Eye,
-  EyeOff,
 } from 'lucide-react';
-import { aiApi, AIInsight, AIRecommendation, AIDashboard } from '@/api/ai';
+import { aiApi, AIDashboard } from '@/api/ai';
 import { useCurrencyFormatter } from '@/lib/currency';
 import { useToast } from '@/hooks/use-toast';
+import TemplatedChat from '@/components/ai/TemplatedChat';
 
 export default function AIAssistant() {
   const [dashboard, setDashboard] = useState<AIDashboard | null>(null);
@@ -206,7 +207,7 @@ export default function AIAssistant() {
           </p>
         </div>
         <div className="flex gap-2">
-          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+          <motion.div whileTap={{ scale: 0.95 }}>
             <Button
               variant="outline"
               onClick={generateNewInsights}
@@ -218,7 +219,7 @@ export default function AIAssistant() {
               Generate Insights
             </Button>
           </motion.div>
-          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+          <motion.div whileTap={{ scale: 0.95 }}>
             <Button
               onClick={generateNewRecommendations}
               disabled={isGenerating}
@@ -284,9 +285,10 @@ export default function AIAssistant() {
 
       {/* AI Content */}
       <Tabs defaultValue="insights" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3 bg-gray-200 dark:bg-gray-800">
           <TabsTrigger value="insights">AI Insights</TabsTrigger>
           <TabsTrigger value="recommendations">Recommendations</TabsTrigger>
+          <TabsTrigger value="chat">Chat</TabsTrigger>
         </TabsList>
 
         <TabsContent value="insights" className="space-y-6">
@@ -307,7 +309,6 @@ export default function AIAssistant() {
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ duration: 0.3, delay: 0.4 + index * 0.1 }}
-                    whileHover={{ scale: 1.01 }}
                   >
                     <Card>
                       <CardHeader>
@@ -321,10 +322,7 @@ export default function AIAssistant() {
                               {insight.priority}
                             </Badge>
                           </div>
-                          <motion.div
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.9 }}
-                          >
+                          <motion.div whileTap={{ scale: 0.9 }}>
                             <Button
                               variant="ghost"
                               size="sm"
@@ -405,7 +403,12 @@ export default function AIAssistant() {
                                   </div>
                                   <div className="space-y-1 text-sm">
                                     {insight.data.summary.goals.map(
-                                      (g: any) => (
+                                      (g: {
+                                        id: string;
+                                        name: string;
+                                        currentAmount: number;
+                                        targetAmount: number;
+                                      }) => (
                                         <div
                                           key={g.id}
                                           className="flex justify-between"
@@ -430,7 +433,7 @@ export default function AIAssistant() {
                               )}
                           </div>
                         )}
-                        <div className="text-xs text-muted-foreground">
+                        <div className="text-xs text-muted-foreground mt-3">
                           Generated:{' '}
                           {new Date(insight.generatedAt).toLocaleString(
                             'id-ID',
@@ -479,7 +482,6 @@ export default function AIAssistant() {
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ duration: 0.3, delay: 0.4 + index * 0.1 }}
-                    whileHover={{ scale: 1.01 }}
                   >
                     <Card className={recommendation.isRead ? 'opacity-60' : ''}>
                       <CardHeader>
@@ -504,10 +506,7 @@ export default function AIAssistant() {
                           </div>
                           <div className="flex items-center space-x-2">
                             {!recommendation.isRead && (
-                              <motion.div
-                                whileHover={{ scale: 1.1 }}
-                                whileTap={{ scale: 0.9 }}
-                              >
+                              <motion.div whileTap={{ scale: 0.9 }}>
                                 <Button
                                   variant="ghost"
                                   size="sm"
@@ -563,6 +562,11 @@ export default function AIAssistant() {
               </Card>
             )}
           </motion.div>
+        </TabsContent>
+
+        {/* Chat AI berbasis template (tanpa input bebas) */}
+        <TabsContent value="chat" className="space-y-6">
+          <TemplatedChat />
         </TabsContent>
       </Tabs>
     </motion.div>

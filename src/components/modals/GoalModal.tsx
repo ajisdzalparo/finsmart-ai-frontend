@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { DatePicker } from '@/components/ui/DatePicker';
+import { CurrencyInput } from '@/components/ui/CurrencyInput';
+import { useCurrencyFormatter } from '@/lib/currency';
 import { Label } from '@/components/ui/label';
 import {
   Dialog,
@@ -80,6 +83,7 @@ export function GoalModal({ goal, open, onOpenChange }: GoalModalProps) {
 
   const isLoading =
     createGoalMutation.isPending || updateGoalMutation.isPending;
+  const { format } = useCurrencyFormatter();
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -113,38 +117,42 @@ export function GoalModal({ goal, open, onOpenChange }: GoalModalProps) {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="targetAmount">Target Amount *</Label>
-                <Input
+                <CurrencyInput
                   id="targetAmount"
-                  type="number"
                   placeholder="10000"
-                  value={formData.targetAmount || ''}
-                  onChange={(e) =>
+                  value={formData.targetAmount}
+                  onValueChange={(v) =>
                     setFormData({
                       ...formData,
-                      targetAmount: parseFloat(e.target.value) || 0,
+                      targetAmount: v,
                     })
                   }
                   required
-                  min="0"
-                  step="0.01"
                 />
+                {formData.targetAmount > 0 && (
+                  <p className="text-[11px] text-muted-foreground">
+                    = {format(Number(formData.targetAmount))}
+                  </p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="currentAmount">Current Amount</Label>
-                <Input
+                <CurrencyInput
                   id="currentAmount"
-                  type="number"
                   placeholder="0"
-                  value={formData.currentAmount || ''}
-                  onChange={(e) =>
+                  value={formData.currentAmount}
+                  onValueChange={(v) =>
                     setFormData({
                       ...formData,
-                      currentAmount: parseFloat(e.target.value) || 0,
+                      currentAmount: v,
                     })
                   }
-                  min="0"
-                  step="0.01"
                 />
+                {formData.currentAmount > 0 && (
+                  <p className="text-[11px] text-muted-foreground">
+                    = {format(Number(formData.currentAmount))}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -152,12 +160,11 @@ export function GoalModal({ goal, open, onOpenChange }: GoalModalProps) {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="targetDate">Target Date</Label>
-                <Input
+                <DatePicker
                   id="targetDate"
-                  type="date"
                   value={formData.targetDate}
-                  onChange={(e) =>
-                    setFormData({ ...formData, targetDate: e.target.value })
+                  onChange={(val) =>
+                    setFormData({ ...formData, targetDate: val })
                   }
                 />
               </div>
@@ -221,8 +228,8 @@ export function GoalModal({ goal, open, onOpenChange }: GoalModalProps) {
                   />
                 </div>
                 <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                  <span>${formData.currentAmount.toLocaleString()}</span>
-                  <span>${formData.targetAmount.toLocaleString()}</span>
+                  <span>{format(Number(formData.currentAmount))}</span>
+                  <span>{format(Number(formData.targetAmount))}</span>
                 </div>
               </div>
             )}

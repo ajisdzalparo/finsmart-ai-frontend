@@ -52,6 +52,11 @@ export const aiApi = {
     const response = await api.post('/ai/insights/generate');
     return response.data;
   },
+  // Preview insights (no DB write)
+  previewInsights: async (): Promise<any[]> => {
+    const response = await api.get('/ai/insights/preview');
+    return response.data?.data ?? response.data;
+  },
 
   // Delete insight
   deleteInsight: async (insightId: string): Promise<void> => {
@@ -73,6 +78,11 @@ export const aiApi = {
   generateRecommendations: async (): Promise<AIRecommendation[]> => {
     const response = await api.post('/ai/recommendations/generate');
     return response.data;
+  },
+  // Preview recommendations (no DB write)
+  previewRecommendations: async (): Promise<any[]> => {
+    const response = await api.get('/ai/recommendations/preview');
+    return response.data?.data ?? response.data;
   },
 
   // Mark recommendation as read

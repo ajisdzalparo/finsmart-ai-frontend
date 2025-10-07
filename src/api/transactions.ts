@@ -1,4 +1,9 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
 import api from './api';
 
 export interface Transaction {
@@ -49,6 +54,18 @@ export interface BatchTransactionData {
   items: CreateTransactionData[];
 }
 
+export interface PaginationMeta {
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export interface PaginatedTransactionsResponse {
+  items: Transaction[];
+  pagination: PaginationMeta;
+}
+
 export const useTransactionsQuery = () => {
   return useQuery<Transaction[]>({
     queryKey: ['transactions'],
@@ -81,6 +98,45 @@ export const useTransactionsByCategoryQuery = (categoryId: string) => {
   });
 };
 
+export const usePaginatedTransactionsQuery = (
+  page: number,
+  limit: number,
+  opts?: { type?: 'all' | 'income' | 'expense' | 'transfer'; q?: string },
+) => {
+  return useQuery<PaginatedTransactionsResponse>({
+    queryKey: [
+      'transactions',
+      'list',
+      page,
+      limit,
+      opts?.type ?? 'all',
+      opts?.q ?? '',
+    ],
+    queryFn: async () => {
+      const response = await api.get('/transactions/list', {
+        params: { page, limit, type: opts?.type, q: opts?.q },
+      });
+      // response berbentuk { success, message, data, pagination }
+      const payload = response.data;
+      const rawItems = Array.isArray(payload)
+        ? (payload as unknown as Transaction[])
+        : Array.isArray(payload?.data)
+        ? (payload.data as Transaction[])
+        : [];
+      return {
+        items: rawItems,
+        pagination: (payload?.pagination ?? {
+          total: 0,
+          page,
+          limit,
+          totalPages: 0,
+        }) as PaginationMeta,
+      };
+    },
+    placeholderData: keepPreviousData,
+  });
+};
+
 export const useCreateTransactionMutation = () => {
   const queryClient = useQueryClient();
 
@@ -91,6 +147,7 @@ export const useCreateTransactionMutation = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['transactions', 'list'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });
@@ -106,6 +163,7 @@ export const useCreateBatchTransactionsMutation = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['transactions', 'list'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });
@@ -128,6 +186,7 @@ export const useUpdateTransactionMutation = () => {
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
       queryClient.invalidateQueries({ queryKey: ['transactions', id] });
+      queryClient.invalidateQueries({ queryKey: ['transactions', 'list'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });
@@ -142,6 +201,7 @@ export const useDeleteTransactionMutation = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['transactions', 'list'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });

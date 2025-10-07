@@ -1,32 +1,46 @@
-import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { 
-  PlusCircle, 
-  DollarSign, 
-  ShoppingCart, 
-  Coffee, 
-  Car, 
-  Home, 
-  Gamepad2, 
-  Heart, 
+import { useState } from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { DatePicker } from '@/components/ui/DatePicker';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  PlusCircle,
+  DollarSign,
+  ShoppingCart,
+  Coffee,
+  Car,
+  Home,
+  Gamepad2,
+  Heart,
   TrendingUp,
-  CreditCard 
-} from "lucide-react";
+  CreditCard,
+} from 'lucide-react';
+import { useCurrencyFormatter } from '@/lib/currency';
 
 const categories = [
-  { value: "food", label: "Food & Dining", icon: Coffee },
-  { value: "transport", label: "Transportation", icon: Car },
-  { value: "shopping", label: "Shopping", icon: ShoppingCart },
-  { value: "housing", label: "Housing", icon: Home },
-  { value: "entertainment", label: "Entertainment", icon: Gamepad2 },
-  { value: "healthcare", label: "Healthcare", icon: Heart },
-  { value: "income", label: "Income", icon: TrendingUp },
-  { value: "bills", label: "Bills & Utilities", icon: CreditCard },
+  { value: 'food', label: 'Food & Dining', icon: Coffee },
+  { value: 'transport', label: 'Transportation', icon: Car },
+  { value: 'shopping', label: 'Shopping', icon: ShoppingCart },
+  { value: 'housing', label: 'Housing', icon: Home },
+  { value: 'entertainment', label: 'Entertainment', icon: Gamepad2 },
+  { value: 'healthcare', label: 'Healthcare', icon: Heart },
+  { value: 'income', label: 'Income', icon: TrendingUp },
+  { value: 'bills', label: 'Bills & Utilities', icon: CreditCard },
 ];
 
 interface AddTransactionDialogProps {
@@ -35,47 +49,54 @@ interface AddTransactionDialogProps {
   onTransactionAdd?: (transaction: any) => void;
 }
 
-export default function AddTransactionDialog({ children, onTransactionAdd }: AddTransactionDialogProps) {
+export default function AddTransactionDialog({
+  children,
+  onTransactionAdd,
+}: AddTransactionDialogProps) {
   const [open, setOpen] = useState(false);
+  const { format } = useCurrencyFormatter();
   const [formData, setFormData] = useState({
-    description: "",
-    amount: "",
-    type: "",
-    category: "",
-    notes: "",
-    date: new Date().toISOString().split('T')[0]
+    description: '',
+    amount: '',
+    type: '',
+    category: '',
+    notes: '',
+    date: new Date().toISOString().split('T')[0],
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     const transaction = {
       id: Date.now(),
       description: formData.description,
-      amount: formData.type === "expense" ? -Math.abs(parseFloat(formData.amount)) : Math.abs(parseFloat(formData.amount)),
+      amount:
+        formData.type === 'expense'
+          ? -Math.abs(parseFloat(formData.amount))
+          : Math.abs(parseFloat(formData.amount)),
       category: formData.category,
       notes: formData.notes,
       date: formData.date,
-      type: formData.type
+      type: formData.type,
     };
 
     onTransactionAdd?.(transaction);
-    
+
     // Reset form
     setFormData({
-      description: "",
-      amount: "",
-      type: "",
-      category: "",
-      notes: "",
-      date: new Date().toISOString().split('T')[0]
+      description: '',
+      amount: '',
+      type: '',
+      category: '',
+      notes: '',
+      date: new Date().toISOString().split('T')[0],
     });
-    
+
     setOpen(false);
   };
 
   const getCategoryIcon = (categoryValue: string) => {
-    const category = categories.find(cat => cat.value === categoryValue);
+    const category = categories.find((cat) => cat.value === categoryValue);
     return category?.icon || DollarSign;
   };
 
@@ -117,17 +138,19 @@ export default function AddTransactionDialog({ children, onTransactionAdd }: Add
                 }
                 required
               />
+              {formData.amount && (
+                <p className="text-[11px] text-muted-foreground">
+                  = {format(Math.abs(Number(formData.amount) || 0))}
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="date">Date</Label>
-              <Input
+              <DatePicker
                 id="date"
-                type="date"
                 value={formData.date}
-                onChange={(e) =>
-                  setFormData({ ...formData, date: e.target.value })
-                }
+                onChange={(val) => setFormData({ ...formData, date: val })}
                 required
               />
             </div>

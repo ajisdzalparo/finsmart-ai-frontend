@@ -10,6 +10,14 @@ function escapeHtml(value: unknown): string {
     .replace(/'/g, '&#39;');
 }
 
+function toTitle(text: string): string {
+  return text
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 function toExpenseByCategoryRows(
   summary: unknown,
 ): Array<{ Kategori: string; Jumlah: number }> | null {
@@ -38,9 +46,7 @@ function toIncomeVsExpenseRows(
   return [{ Income: t.income, Expense: t.expense, Balance: t.balance }];
 }
 
-function toCashflowMonthlyRows(
-  summary: unknown,
-): Array<{
+function toCashflowMonthlyRows(summary: unknown): Array<{
   Bulan: string;
   Income: number;
   Expense: number;
@@ -72,20 +78,20 @@ function toCashflowMonthlyRows(
 
 function buildHtmlTable<T extends Record<string, unknown>>(rows: T[]): string {
   if (!rows || rows.length === 0)
-    return '<table><thead><tr><th>Tidak ada data</th></tr></thead><tbody></tbody></table>';
+    return '<table class="fs-table"><thead><tr><th>Tidak ada data</th></tr></thead><tbody></tbody></table>';
   const headers = Object.keys(rows[0]);
   const thead = `<thead><tr>${headers
-    .map((h) => `<th>${escapeHtml(h)}</th>`)
+    .map((h) => `<th class="fs-th">${escapeHtml(h)}</th>`)
     .join('')}</tr></thead>`;
   const tbody = `<tbody>${rows
     .map(
       (row) =>
         `<tr>${headers
-          .map((h) => `<td>${escapeHtml(row[h])}</td>`)
+          .map((h) => `<td class="fs-td">${escapeHtml(row[h])}</td>`)
           .join('')}</tr>`,
     )
     .join('')}</tbody>`;
-  return `<table border="1">${thead}${tbody}</table>`;
+  return `<table class="fs-table" border="1">${thead}${tbody}</table>`;
 }
 
 export function exportReportToExcel(report: Report) {
@@ -109,7 +115,30 @@ export function exportReportToExcel(report: Report) {
   }
 
   const table = buildHtmlTable(rows);
-  const html = `<!DOCTYPE html><html><head><meta charset="utf-8" /></head><body>${table}</body></html>`;
+  const title = toTitle(report.reportType);
+  const generatedAt = new Date(report.generatedAt).toLocaleString('id-ID');
+  const styles = `
+    <style>
+      body { font-family: Arial, Helvetica, sans-serif; color: #0f172a; }
+      .fs-header { text-align: center; margin-bottom: 16px; }
+      .fs-brand { font-size: 24px; font-weight: 800; letter-spacing: 0.5px; }
+      .fs-subtitle { font-size: 14px; color: #475569; margin-top: 2px; }
+      .fs-meta { font-size: 12px; color: #64748b; margin-top: 2px; }
+      .fs-table { border-collapse: collapse; width: 100%; }
+      .fs-th { background: #eef2ff; color: #1e293b; text-align: left; padding: 8px; }
+      .fs-td { padding: 8px; }
+      .fs-table tr:nth-child(even) td { background: #f8fafc; }
+      .fs-table tr:nth-child(odd) td { background: #ffffff; }
+    </style>
+  `;
+  const header = `
+    <div class="fs-header">
+      <div class="fs-brand">FINSMART</div>
+      <div class="fs-subtitle">${escapeHtml(title)}</div>
+      <div class="fs-meta">Dibuat: ${escapeHtml(generatedAt)}</div>
+    </div>
+  `;
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8" />${styles}</head><body>${header}${table}</body></html>`;
   const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');

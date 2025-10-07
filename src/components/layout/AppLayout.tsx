@@ -98,10 +98,7 @@ export default function AppLayout() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex h-16 justify-between items-center">
             <div className="flex items-center">
-              <motion.div
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
+              <motion.div whileTap={{ scale: 0.95 }}>
                 <Button
                   variant="ghost"
                   size="sm"
@@ -124,11 +121,7 @@ export default function AppLayout() {
                   const Icon = item.icon;
                   const active = isActive(item.href);
                   return (
-                    <motion.div
-                      key={item.name}
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                    >
+                    <motion.div key={item.name} whileTap={{ scale: 0.95 }}>
                       <Button
                         variant="ghost"
                         size="sm"
@@ -157,11 +150,7 @@ export default function AppLayout() {
                     const Icon = item.icon;
                     const active = isActive(item.href);
                     return (
-                      <motion.div
-                        key={item.name}
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                      >
+                      <motion.div key={item.name} whileTap={{ scale: 0.95 }}>
                         <Button
                           variant="ghost"
                           size="sm"
@@ -191,11 +180,7 @@ export default function AppLayout() {
                     const Icon = item.icon;
                     const active = isActive(item.href);
                     return (
-                      <motion.div
-                        key={item.name}
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                      >
+                      <motion.div key={item.name} whileTap={{ scale: 0.95 }}>
                         <Button
                           variant="ghost"
                           size="sm"
@@ -218,7 +203,7 @@ export default function AppLayout() {
             </nav>
 
             <div className="flex items-center space-x-2">
-              <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+              <motion.div whileTap={{ scale: 0.9 }}>
                 <Button
                   variant="ghost"
                   size="icon"
@@ -237,18 +222,17 @@ export default function AppLayout() {
                 <DropdownMenuTrigger asChild>
                   <motion.button
                     className="flex items-center space-x-4 focus:outline-none"
-                    whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                   >
                     <div className="flex items-start space-x-3">
                       <div className="w-8 h-8 bg-primary/20 rounded-full flex items-center justify-center">
                         <span className="text-primary font-semibold text-sm">
-                          {user?.email?.[0]?.toUpperCase() || 'U'}
+                          {user?.name?.[0]?.toUpperCase() || 'U'}
                         </span>
                       </div>
                       <div className="hidden md:block text-left">
                         <p className="text-primary font-medium text-sm">
-                          {user?.email || 'Guest'}
+                          {user?.name || 'Guest'}
                         </p>
                         <p className="text-muted-foreground text-xs">
                           Personal Account
@@ -261,13 +245,11 @@ export default function AppLayout() {
                   <DropdownMenuLabel className="flex items-center space-x-2">
                     <div className="w-8 h-8 bg-primary/20 rounded-full flex items-center justify-center">
                       <span className="text-primary font-semibold text-sm">
-                        {user?.email?.[0]?.toUpperCase() || 'U'}
+                        {user?.name?.[0]?.toUpperCase() || 'U'}
                       </span>
                     </div>
                     <div>
-                      <div className="font-medium">
-                        {user?.email || 'Guest'}
-                      </div>
+                      <div className="font-medium">{user?.name || 'Guest'}</div>
                       <div className="text-xs text-muted-foreground">
                         Personal Account
                       </div>

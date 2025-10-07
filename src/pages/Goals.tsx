@@ -7,6 +7,7 @@ import {
   useGoalsQuery,
   useDeleteGoalMutation,
   useAddMoneyToGoalMutation,
+  useCreateGoalMutation,
   Goal,
 } from '@/api/goals';
 import { GoalModal } from '@/components/modals/GoalModal';
@@ -20,13 +21,15 @@ import { QuickGoalCreation } from '@/components/goals/QuickGoalCreation';
 import { SmartGoalProgress } from '@/components/goals/SmartGoalProgress';
 import { GoalInsights } from '@/components/goals/GoalInsights';
 import { GoalContributionSuccess } from '@/components/goals/GoalContributionSuccess';
+import { GoalDetailModal } from '@/components/modals/GoalDetailModal';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+// Tabs dihapus karena tidak digunakan pada halaman ini
+import { useToast } from '@/hooks/use-toast';
 
 export default function Goals() {
   const [showGoalModal, setShowGoalModal] = useState(false);
@@ -36,6 +39,7 @@ export default function Goals() {
   const [showSmartProgress, setShowSmartProgress] = useState(false);
   const [showInsights, setShowInsights] = useState(false);
   const [showContributionSuccess, setShowContributionSuccess] = useState(false);
+  const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null);
   const [lastContribution, setLastContribution] = useState<{
     amount: number;
@@ -46,6 +50,8 @@ export default function Goals() {
   const { data: goals = [], isLoading } = useGoalsQuery();
   const deleteGoalMutation = useDeleteGoalMutation();
   const addMoneyMutation = useAddMoneyToGoalMutation();
+  const createGoalMutation = useCreateGoalMutation();
+  const { toast } = useToast();
 
   const openGoalModal = (goal?: Goal) => {
     setSelectedGoal(goal || null);
@@ -67,14 +73,22 @@ export default function Goals() {
     setShowSmartProgress(true);
   };
 
+  const openDetailModal = (goal: Goal) => {
+    setSelectedGoal(goal);
+    setShowDetailModal(true);
+  };
+
   const handleQuickGoalCreate = async (goalData: any) => {
     try {
-      // Here you would call the create goal API
-      console.log('Creating goal:', goalData);
+      await createGoalMutation.mutateAsync(goalData);
       setShowQuickCreate(false);
-      // Refresh goals list
+      toast({ title: 'Berhasil', description: 'Goal berhasil dibuat' });
     } catch (error) {
-      console.error('Error creating goal:', error);
+      toast({
+        title: 'Error',
+        description: 'Gagal membuat goal',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -88,14 +102,19 @@ export default function Goals() {
 
         // Store contribution details for success modal
         setLastContribution({
-          amount: amount,
+          amount: Number(amount),
           transactionId: result.transaction?.id || 'unknown',
         });
 
         setShowSmartProgress(false);
         setShowContributionSuccess(true);
+        toast({ title: 'Berhasil', description: 'Dana berhasil ditambahkan' });
       } catch (error) {
-        console.error('Error adding money to goal:', error);
+        toast({
+          title: 'Error',
+          description: 'Gagal menambahkan dana ke goal',
+          variant: 'destructive',
+        });
       }
     }
   };
@@ -113,39 +132,39 @@ export default function Goals() {
     >
       {/* Header */}
       <motion.div
-        className="flex justify-between items-center"
+        className="flex justify-between items-center bg-card border border-border rounded-xl p-4 md:p-6 shadow-sm"
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.1 }}
       >
         <div>
           <h1 className="text-3xl font-bold text-foreground">
-            Financial Goals
+            Tujuan Keuangan
           </h1>
           <p className="text-muted-foreground mt-2">
-            Set and track your savings goals to achieve your dreams.
+            Atur dan pantau tujuan tabungan Anda untuk raih impian.
           </p>
         </div>
         <div className="flex gap-2">
-          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+          <motion.div whileTap={{ scale: 0.95 }}>
             <Button variant="outline" onClick={() => setShowInsights(true)}>
               <BarChart3 className="h-4 w-4 mr-2" />
-              Insights
+              Insight
             </Button>
           </motion.div>
-          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+          <motion.div whileTap={{ scale: 0.95 }}>
             <Button variant="outline" onClick={() => setShowQuickCreate(true)}>
               <Target className="h-4 w-4 mr-2" />
-              Quick Create
+              Buat Cepat
             </Button>
           </motion.div>
-          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+          <motion.div whileTap={{ scale: 0.95 }}>
             <Button
               onClick={() => openGoalModal()}
               className="bg-primary shadow-primary hover:shadow-elevated"
             >
               <PlusCircle className="h-4 w-4 mr-2" />
-              Add Goal
+              Tambah Tujuan
             </Button>
           </motion.div>
         </div>
@@ -168,13 +187,13 @@ export default function Goals() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3, delay: 0.4 + index * 0.1 }}
-                whileHover={{ scale: 1.02 }}
               >
                 <GoalProgressCard
                   goal={goal}
                   onAddMoney={openSmartProgress}
                   onEdit={openGoalModal}
                   onDelete={openDeleteModal}
+                  onViewDetails={openDetailModal}
                   isDeleting={deleteGoalMutation.isPending}
                 />
               </motion.div>
@@ -187,6 +206,11 @@ export default function Goals() {
       )}
 
       {/* Modals */}
+      <GoalDetailModal
+        goal={selectedGoal}
+        open={showDetailModal}
+        onOpenChange={setShowDetailModal}
+      />
       <GoalModal
         goal={selectedGoal}
         open={showGoalModal}
@@ -209,10 +233,7 @@ export default function Goals() {
           <DialogHeader>
             <DialogTitle>Buat Goal Baru</DialogTitle>
           </DialogHeader>
-          <QuickGoalCreation
-            onGoalCreate={handleQuickGoalCreate}
-            onClose={() => setShowQuickCreate(false)}
-          />
+          <QuickGoalCreation onGoalCreate={handleQuickGoalCreate} />
         </DialogContent>
       </Dialog>
 
@@ -220,7 +241,7 @@ export default function Goals() {
       <Dialog open={showSmartProgress} onOpenChange={setShowSmartProgress}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Tambah Progress Goal</DialogTitle>
+            <DialogTitle>Tambah Progres Tujuan</DialogTitle>
           </DialogHeader>
           {selectedGoal && (
             <SmartGoalProgress
@@ -234,9 +255,9 @@ export default function Goals() {
 
       {/* Goals Insights Modal */}
       <Dialog open={showInsights} onOpenChange={setShowInsights}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="max-w-6xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Goals Insights & Analytics</DialogTitle>
+            <DialogTitle>Insight & Analitik Tujuan</DialogTitle>
           </DialogHeader>
           <GoalInsights goals={goals} />
         </DialogContent>

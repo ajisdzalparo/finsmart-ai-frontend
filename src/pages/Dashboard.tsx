@@ -223,12 +223,12 @@ export default function Dashboard() {
         transition={{ duration: 0.5, delay: 0.1 }}
       >
         <div>
-          <h1 className="text-3xl font-bold text-primary">Dashboard</h1>
+          <h1 className="text-3xl font-bold">Dashboard</h1>
           <p className="text-muted-foreground mt-2">
             Welcome back! Here's your financial overview.
           </p>
         </div>
-        <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+        <motion.div whileTap={{ scale: 0.95 }}>
           <Button
             onClick={handleDirectTransaction}
             className="bg-primary shadow-primary hover:shadow-elevated"
@@ -254,7 +254,6 @@ export default function Dashboard() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.2 + index * 0.1 }}
-              whileHover={{ scale: 1.02 }}
             >
               <Card className="shadow-card hover:shadow-elevated transition-shadow">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -321,7 +320,7 @@ export default function Dashboard() {
                       className={`font-semibold ${
                         transaction.category?.type === 'income'
                           ? 'text-success'
-                          : 'text-destructive'
+                          : 'text-destructive dark:text-destructive-foreground'
                       }`}
                     >
                       {transaction.category?.type === 'income' ? '+' : '-'}

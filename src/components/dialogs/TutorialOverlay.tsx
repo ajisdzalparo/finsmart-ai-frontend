@@ -250,7 +250,7 @@ export function TutorialOverlay({
                 <Button
                   variant="outline"
                   onClick={handlePrev}
-                  className="px-6 py-2 border-2 border-border hover:border-primary hover:bg-accent transition-all duration-300"
+                  className="px-6 py-2 border-2 border-border hover:border-primary hover:bg-primary/80 transition-all duration-300"
                 >
                   ← Sebelumnya
                 </Button>

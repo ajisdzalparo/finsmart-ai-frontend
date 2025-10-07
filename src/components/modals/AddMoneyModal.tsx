@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { CurrencyInput } from '@/components/ui/CurrencyInput';
+import { useCurrencyFormatter } from '@/lib/currency';
 import { Label } from '@/components/ui/label';
 import {
   Dialog,
@@ -26,6 +28,7 @@ export function AddMoneyModal({
 }: AddMoneyModalProps) {
   const [amount, setAmount] = useState('');
   const addMoneyMutation = useAddMoneyToGoalMutation();
+  const { format } = useCurrencyFormatter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,7 +63,7 @@ export function AddMoneyModal({
           </DialogTitle>
           <DialogDescription>
             Add money to <strong>"{goal.name}"</strong> to help reach your
-            target of <strong>${goal.targetAmount.toLocaleString()}</strong>.
+            target of <strong>{format(Number(goal.targetAmount))}</strong>.
           </DialogDescription>
         </DialogHeader>
 
@@ -81,8 +84,8 @@ export function AddMoneyModal({
                 />
               </div>
               <div className="flex justify-between text-xs text-muted-foreground">
-                <span>${goal.currentAmount.toLocaleString()}</span>
-                <span>${goal.targetAmount.toLocaleString()}</span>
+                <span>{format(Number(goal.currentAmount))}</span>
+                <span>{format(Number(goal.targetAmount))}</span>
               </div>
             </div>
 
@@ -91,15 +94,13 @@ export function AddMoneyModal({
               <Label htmlFor="amount">Amount to Add *</Label>
               <div className="relative">
                 <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
+                <CurrencyInput
                   id="amount"
-                  type="number"
                   placeholder="Enter amount"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
+                  onValueChange={(v) => setAmount(String(v))}
                   required
-                  min="0.01"
-                  step="0.01"
                   className="pl-10"
                 />
               </div>
@@ -118,7 +119,7 @@ export function AddMoneyModal({
                     onClick={() => setAmount(quickAmount.toString())}
                     className="text-xs"
                   >
-                    ${quickAmount}
+                    {format(quickAmount)}
                   </Button>
                 ))}
               </div>
@@ -135,7 +136,7 @@ export function AddMoneyModal({
                 </div>
                 <div className="flex justify-between text-sm mb-2">
                   <span>
-                    Progress after adding ${parseFloat(amount).toLocaleString()}
+                    Progress after adding {format(Number(amount || '0'))}
                   </span>
                   <span className="font-medium text-success">
                     {Math.round(newProgress)}%
@@ -149,10 +150,9 @@ export function AddMoneyModal({
                 </div>
                 <div className="flex justify-between text-xs text-muted-foreground mt-1">
                   <span>
-                    $
-                    {(goal.currentAmount + parseFloat(amount)).toLocaleString()}
+                    {format(Number(goal.currentAmount) + Number(amount || '0'))}
                   </span>
-                  <span>${goal.targetAmount.toLocaleString()}</span>
+                  <span>{format(Number(goal.targetAmount))}</span>
                 </div>
               </div>
             )}

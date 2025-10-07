@@ -1,11 +1,13 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Goal } from '@/api/goals';
+import { useCurrencyFormatter } from '@/lib/currency';
 
 interface GoalsSummaryProps {
   goals: Goal[];
 }
 
 export function GoalsSummary({ goals }: GoalsSummaryProps) {
+  const { format } = useCurrencyFormatter();
   const totalSaved = goals.reduce(
     (acc, goal) => acc + Number(goal.currentAmount),
     0,
@@ -24,36 +26,36 @@ export function GoalsSummary({ goals }: GoalsSummaryProps) {
   return (
     <Card className="shadow-card">
       <CardHeader>
-        <CardTitle>Goals Summary</CardTitle>
+        <CardTitle>Ringkasan Tujuan</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="grid gap-6 md:grid-cols-4">
           <div className="text-center">
             <div className="text-2xl font-bold text-primary">{activeGoals}</div>
-            <p className="text-sm text-muted-foreground">Active Goals</p>
+            <p className="text-sm text-muted-foreground">Aktif</p>
           </div>
           <div className="text-center">
             <div className="text-2xl font-bold text-success">
               {completedGoals}
             </div>
-            <p className="text-sm text-muted-foreground">Completed</p>
+            <p className="text-sm text-muted-foreground">Selesai</p>
           </div>
           <div className="text-center">
             <div className="text-2xl font-bold text-success">
-              ${totalSaved.toLocaleString()}
+              {format(totalSaved)}
             </div>
-            <p className="text-sm text-muted-foreground">Total Saved</p>
+            <p className="text-sm text-muted-foreground">Total Terkumpul</p>
           </div>
           <div className="text-center">
             <div className="text-2xl font-bold text-warning">
-              ${totalTarget.toLocaleString()}
+              {format(totalTarget)}
             </div>
             <p className="text-sm text-muted-foreground">Total Target</p>
           </div>
         </div>
         <div className="mt-6">
           <div className="flex justify-between text-sm mb-2">
-            <span>Overall Progress</span>
+            <span>Progres Keseluruhan</span>
             <span className="font-medium">{Math.round(overallProgress)}%</span>
           </div>
           <div className="w-full bg-muted rounded-full h-2">

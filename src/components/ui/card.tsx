@@ -13,7 +13,7 @@ const Card = React.forwardRef<
       'rounded-lg border bg-card text-card-foreground shadow-sm',
       className,
     )}
-    whileHover={{ scale: 1.01, y: -2 }}
+    whileHover={{ y: -2 }}
     transition={{ duration: 0.2 }}
     {...props}
   />

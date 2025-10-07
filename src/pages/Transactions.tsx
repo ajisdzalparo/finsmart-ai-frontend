@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { DatePicker } from '@/components/ui/DatePicker';
 import { Label } from '@/components/ui/label';
 import {
   Select,
@@ -11,24 +12,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { PlusCircle, Search, Calendar, AlertCircle } from 'lucide-react';
 import {
-  PlusCircle,
-  Search,
-  Filter,
-  ArrowUpDown,
-  Edit,
-  Trash2,
-  Calendar,
-  AlertCircle,
-} from 'lucide-react';
-import {
-  useTransactionsQuery,
+  usePaginatedTransactionsQuery,
   useCreateTransactionMutation,
-  useDeleteTransactionMutation,
   Transaction,
   validateTransactionName,
+  PaginatedTransactionsResponse,
 } from '@/api/transactions';
 import { useCategoriesQuery } from '@/api/categories';
 import { useGoalsQuery } from '@/api/goals';
@@ -42,20 +33,32 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import { Separator } from '@/components/ui/separator';
 import { useCurrencyFormatter } from '@/lib/currency';
 
 export default function Transactions() {
-  const { data: transactions, isLoading } = useTransactionsQuery();
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
   const { data: categories } = useCategoriesQuery();
   const { data: goals } = useGoalsQuery();
   const createTransactionMutation = useCreateTransactionMutation();
-  const deleteTransactionMutation = useDeleteTransactionMutation();
   const { toast } = useToast();
   const { format } = useCurrencyFormatter();
 
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterType, setFilterType] = useState<string>('all');
+  const [filterType, setFilterType] = useState<
+    'all' | 'income' | 'expense' | 'transfer'
+  >('all');
+
+  const paginatedQuery = usePaginatedTransactionsQuery(page, limit, {
+    type: filterType,
+    q: searchTerm,
+  });
+  const paginated = paginatedQuery.data as
+    | PaginatedTransactionsResponse
+    | undefined;
+  const isLoading = paginatedQuery.isLoading;
   const [newTransaction, setNewTransaction] = useState({
     description: '',
     amount: '',
@@ -127,22 +130,6 @@ export default function Transactions() {
     }
   };
 
-  const handleDeleteTransaction = async (id: string) => {
-    try {
-      await deleteTransactionMutation.mutateAsync(id);
-      toast({
-        title: 'Berhasil',
-        description: 'Transaksi berhasil dihapus',
-      });
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Gagal menghapus transaksi',
-        variant: 'destructive',
-      });
-    }
-  };
-
   const resetForm = () => {
     setNewTransaction({
       description: '',
@@ -199,19 +186,23 @@ export default function Transactions() {
     checkTransactionName,
   ]);
 
-  const filteredTransactions =
-    transactions?.filter((transaction) => {
-      const matchesSearch =
-        transaction.description
-          ?.toLowerCase()
-          .includes(searchTerm.toLowerCase()) ||
-        transaction.category?.name
-          .toLowerCase()
-          .includes(searchTerm.toLowerCase());
-      const matchesFilter =
-        filterType === 'all' || transaction.category?.type === filterType;
-      return matchesSearch && matchesFilter;
-    }) || [];
+  // Reset halaman saat filter atau pencarian berubah
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, filterType]);
+
+  // Pastikan nomor halaman selalu dalam rentang valid saat total halaman berubah
+  useEffect(() => {
+    const totalPages = paginated?.pagination.totalPages || 1;
+    if (page > totalPages) {
+      setPage(totalPages);
+    } else if (page < 1) {
+      setPage(1);
+    }
+  }, [paginated?.pagination.totalPages, page]);
+
+  const items = paginated?.items || [];
+  const filteredTransactions = items; // Disaring di server melalui query params
 
   const formatCurrency = (amount: number) => format(amount);
 
@@ -273,7 +264,7 @@ export default function Transactions() {
 
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
           <DialogTrigger asChild>
-            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+            <motion.div whileTap={{ scale: 0.95 }}>
               <Button onClick={resetForm}>
                 <PlusCircle className="h-4 w-4 mr-2" />
                 Tambah Transaksi
@@ -314,19 +305,27 @@ export default function Transactions() {
 
               <div className="space-y-2">
                 <Label htmlFor="amount">Jumlah</Label>
-                <Input
-                  id="amount"
-                  type="number"
-                  step="0.01"
-                  placeholder="0"
-                  value={newTransaction.amount}
-                  onChange={(e) =>
-                    setNewTransaction({
-                      ...newTransaction,
-                      amount: e.target.value,
-                    })
-                  }
-                />
+                <div className="flex items-center gap-3">
+                  <Input
+                    id="amount"
+                    type="number"
+                    step="0.01"
+                    placeholder="0"
+                    value={newTransaction.amount}
+                    onChange={(e) =>
+                      setNewTransaction({
+                        ...newTransaction,
+                        amount: e.target.value,
+                      })
+                    }
+                    className="flex-1 min-w-0"
+                  />
+                  {newTransaction.amount && (
+                    <span className="text-[12px] text-muted-foreground whitespace-nowrap">
+                      {format(Math.abs(Number(newTransaction.amount) || 0))}
+                    </span>
+                  )}
+                </div>
               </div>
 
               <div className="space-y-2">
@@ -362,14 +361,13 @@ export default function Transactions() {
 
               <div className="space-y-2">
                 <Label htmlFor="date">Tanggal</Label>
-                <Input
+                <DatePicker
                   id="date"
-                  type="date"
                   value={newTransaction.transactionDate}
-                  onChange={(e) =>
+                  onChange={(val) =>
                     setNewTransaction({
                       ...newTransaction,
-                      transactionDate: e.target.value,
+                      transactionDate: val,
                     })
                   }
                 />
@@ -424,21 +422,29 @@ export default function Transactions() {
                         </SelectContent>
                       </Select>
 
-                      <Input
-                        type="number"
-                        placeholder="Jumlah"
-                        value={row.amount}
-                        onChange={(e) =>
-                          setGoalAllocations((prev) => {
-                            const next = [...prev];
-                            next[idx] = {
-                              ...next[idx],
-                              amount: e.target.value,
-                            };
-                            return next;
-                          })
-                        }
-                      />
+                      <div className="flex flex-col items-start gap-3">
+                        <Input
+                          type="number"
+                          placeholder="Jumlah"
+                          value={row.amount}
+                          onChange={(e) =>
+                            setGoalAllocations((prev) => {
+                              const next = [...prev];
+                              next[idx] = {
+                                ...next[idx],
+                                amount: e.target.value,
+                              };
+                              return next;
+                            })
+                          }
+                          className="flex-1 min-w-0"
+                        />
+                        {row.amount && (
+                          <span className="text-[12px] text-muted-foreground whitespace-nowrap">
+                            {format(Math.abs(Number(row.amount) || 0))}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -477,7 +483,12 @@ export default function Transactions() {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <Select value={filterType} onValueChange={setFilterType}>
+        <Select
+          value={filterType}
+          onValueChange={(v) =>
+            setFilterType(v as 'all' | 'income' | 'expense' | 'transfer')
+          }
+        >
           <SelectTrigger className="w-40">
             <SelectValue placeholder="Filter" />
           </SelectTrigger>
@@ -496,7 +507,7 @@ export default function Transactions() {
           <CardTitle>Daftar Transaksi</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
+          <div className="space-y-6">
             {filteredTransactions.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
@@ -506,78 +517,178 @@ export default function Transactions() {
                 </p>
               </div>
             ) : (
-              filteredTransactions.map((transaction, index) => {
-                const categoryInfo = getCategoryInfo(
-                  transaction.categoryId || '',
+              (() => {
+                const groups = filteredTransactions.reduce(
+                  (acc: Record<string, Transaction[]>, t) => {
+                    const key = new Date(t.transactionDate).toLocaleDateString(
+                      'id-ID',
+                      {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                      },
+                    );
+                    if (!acc[key]) acc[key] = [];
+                    acc[key].push(t);
+                    return acc;
+                  },
+                  {},
                 );
-                const isIncome = categoryInfo?.type === 'income';
+                const sections = Object.entries(groups).sort(
+                  (a, b) => new Date(b[0]).getTime() - new Date(a[0]).getTime(),
+                );
 
-                return (
-                  <motion.div
-                    key={transaction.id}
-                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.3, delay: index * 0.1 }}
-                    whileHover={{ x: 5 }}
-                  >
-                    <div className="flex items-center space-x-4">
-                      <div
-                        className="w-10 h-10 rounded-full flex items-center justify-center text-white text-lg"
-                        style={{
-                          backgroundColor: categoryInfo?.color || '#6b7280',
-                        }}
-                      >
-                        {categoryInfo?.icon || '💰'}
-                      </div>
-                      <div>
-                        <p className="font-medium">
-                          {transaction.description || 'Tanpa deskripsi'}
-                        </p>
-                        <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                          <span>
-                            {new Date(
-                              transaction.transactionDate,
-                            ).toLocaleDateString('id-ID')}
-                          </span>
-                          {categoryInfo && (
-                            <Badge variant="secondary">
-                              {categoryInfo.name}
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
+                return sections.map(([dateLabel, items], sectionIdx) => (
+                  <div key={dateLabel} className="space-y-3">
+                    <div className="flex items-center gap-3">
+                      <h3 className="text-sm font-semibold text-muted-foreground">
+                        {dateLabel}
+                      </h3>
+                      <Separator className="flex-1" />
+                      <Badge variant="outline" className="text-xs">
+                        {items.length} transaksi
+                      </Badge>
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <div className="text-right">
-                        <p
-                          className={`font-semibold text-lg ${
-                            isIncome ? 'text-success' : 'text-destructive'
-                          }`}
-                        >
-                          {isIncome ? '+' : '-'}
-                          {formatCurrency(Math.abs(transaction.amount))}
-                        </p>
-                      </div>
-                      <motion.div
-                        whileHover={{ scale: 1.1 }}
-                        whileTap={{ scale: 0.9 }}
-                      >
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() =>
-                            handleDeleteTransaction(transaction.id)
-                          }
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </motion.div>
+                    <div className="space-y-2">
+                      {items.map((transaction, index) => {
+                        const categoryInfo = getCategoryInfo(
+                          transaction.categoryId || '',
+                        );
+                        const isIncome = categoryInfo?.type === 'income';
+                        return (
+                          <motion.div
+                            key={transaction.id}
+                            className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ duration: 0.3, delay: index * 0.05 }}
+                            whileHover={{ x: 5 }}
+                          >
+                            <div className="flex items-center space-x-4">
+                              <div
+                                className="w-10 h-10 rounded-full flex items-center justify-center text-white text-lg"
+                                style={{
+                                  backgroundColor:
+                                    categoryInfo?.color || '#6b7280',
+                                }}
+                              >
+                                {categoryInfo?.icon || '💰'}
+                              </div>
+                              <div>
+                                <p className="font-medium">
+                                  {transaction.description || 'Tanpa deskripsi'}
+                                </p>
+                                <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                                  {categoryInfo && (
+                                    <Badge variant="secondary">
+                                      {categoryInfo.name}
+                                    </Badge>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <div className="text-right">
+                                <p
+                                  className={`font-semibold text-lg ${
+                                    isIncome
+                                      ? 'text-success'
+                                      : 'text-destructive dark:text-destructive-foreground'
+                                  }`}
+                                >
+                                  {isIncome ? '+' : '-'}
+                                  {formatCurrency(Math.abs(transaction.amount))}
+                                </p>
+                              </div>
+                            </div>
+                          </motion.div>
+                        );
+                      })}
                     </div>
-                  </motion.div>
-                );
-              })
+                    {sectionIdx !== sections.length - 1 && (
+                      <Separator className="mt-2" />
+                    )}
+                  </div>
+                ));
+              })()
             )}
+            {/* Pagination Controls */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
+              <div className="text-sm text-muted-foreground">
+                {(() => {
+                  const total = paginated?.pagination.total ?? 0;
+                  const currentPage = paginated?.pagination.page ?? page;
+                  const pageLimit = paginated?.pagination.limit ?? limit;
+                  const totalPages = paginated?.pagination.totalPages ?? 1;
+                  const from =
+                    total === 0 ? 0 : (currentPage - 1) * pageLimit + 1;
+                  const to =
+                    total === 0 ? 0 : Math.min(currentPage * pageLimit, total);
+                  return `Menampilkan ${from}–${to} dari ${total} (Hal ${currentPage} / ${totalPages})`;
+                })()}
+              </div>
+              <div className="flex items-center gap-2">
+                <Select
+                  value={String(limit)}
+                  onValueChange={(val) => {
+                    const next = Number(val);
+                    setLimit(next);
+                    setPage(1);
+                  }}
+                >
+                  <SelectTrigger className="w-28">
+                    <SelectValue placeholder="Baris / halaman" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[10, 20, 50, 100].map((opt) => (
+                      <SelectItem key={opt} value={String(opt)}>
+                        {opt} / halaman
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage(1)}
+                    disabled={page === 1}
+                  >
+                    « Pertama
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    disabled={page === 1}
+                  >
+                    ‹ Sebelumnya
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setPage((p) =>
+                        Math.min(paginated?.pagination.totalPages || 1, p + 1),
+                      )
+                    }
+                    disabled={page >= (paginated?.pagination.totalPages || 1)}
+                  >
+                    Selanjutnya ›
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setPage(paginated?.pagination.totalPages || 1)
+                    }
+                    disabled={page >= (paginated?.pagination.totalPages || 1)}
+                  >
+                    Terakhir »
+                  </Button>
+                </div>
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
