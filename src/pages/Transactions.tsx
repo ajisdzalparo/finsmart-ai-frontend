@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -30,6 +31,7 @@ import {
   validateTransactionName,
 } from '@/api/transactions';
 import { useCategoriesQuery } from '@/api/categories';
+import { useGoalsQuery } from '@/api/goals';
 import { useToast } from '@/hooks/use-toast';
 import {
   Dialog,
@@ -40,13 +42,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import { useCurrencyFormatter } from '@/lib/currency';
 
 export default function Transactions() {
   const { data: transactions, isLoading } = useTransactionsQuery();
   const { data: categories } = useCategoriesQuery();
+  const { data: goals } = useGoalsQuery();
   const createTransactionMutation = useCreateTransactionMutation();
   const deleteTransactionMutation = useDeleteTransactionMutation();
   const { toast } = useToast();
+  const { format } = useCurrencyFormatter();
 
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -58,6 +63,9 @@ export default function Transactions() {
     transactionDate: new Date().toISOString().split('T')[0],
     currency: 'IDR',
   });
+  const [goalAllocations, setGoalAllocations] = useState<
+    Array<{ goalId: string; amount: string }>
+  >([]);
   const [validationError, setValidationError] = useState<string>('');
 
   const handleCreateTransaction = async () => {
@@ -81,6 +89,9 @@ export default function Transactions() {
         categoryId: newTransaction.categoryId,
         transactionDate: newTransaction.transactionDate,
         currency: newTransaction.currency,
+        goalAllocations: goalAllocations
+          .filter((g) => g.goalId && g.amount && Number(g.amount) > 0)
+          .map((g) => ({ goalId: g.goalId, amount: Number(g.amount) })),
       });
 
       toast({
@@ -141,6 +152,7 @@ export default function Transactions() {
       currency: 'IDR',
     });
     setValidationError('');
+    setGoalAllocations([]);
   };
 
   // Fungsi untuk validasi real-time menggunakan API dengan debounce
@@ -201,13 +213,7 @@ export default function Transactions() {
       return matchesSearch && matchesFilter;
     }) || [];
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0,
-    }).format(amount);
-  };
+  const formatCurrency = (amount: number) => format(amount);
 
   const getCategoryInfo = (categoryId: string) => {
     return categories?.find((cat) => cat.id === categoryId);
@@ -245,9 +251,19 @@ export default function Transactions() {
   }
 
   return (
-    <div className="space-y-8">
+    <motion.div
+      className="space-y-8"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+    >
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <motion.div
+        className="flex justify-between items-center"
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.1 }}
+      >
         <div>
           <h1 className="text-3xl font-bold text-foreground">Transaksi</h1>
           <p className="text-muted-foreground mt-2">
@@ -257,10 +273,12 @@ export default function Transactions() {
 
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
           <DialogTrigger asChild>
-            <Button onClick={resetForm}>
-              <PlusCircle className="h-4 w-4 mr-2" />
-              Tambah Transaksi
-            </Button>
+            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+              <Button onClick={resetForm}>
+                <PlusCircle className="h-4 w-4 mr-2" />
+                Tambah Transaksi
+              </Button>
+            </motion.div>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
@@ -356,6 +374,75 @@ export default function Transactions() {
                   }
                 />
               </div>
+
+              {/* Goal Allocations */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label>Alokasi ke Goals (opsional)</Label>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() =>
+                      setGoalAllocations((prev) => [
+                        ...prev,
+                        { goalId: '', amount: '' },
+                      ])
+                    }
+                  >
+                    Tambah Alokasi
+                  </Button>
+                </div>
+                <div className="space-y-2">
+                  {goalAllocations.length === 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      Anda dapat membagi jumlah transaksi ke satu atau beberapa
+                      goals.
+                    </p>
+                  )}
+                  {goalAllocations.map((row, idx) => (
+                    <div key={idx} className="grid grid-cols-2 gap-3">
+                      <Select
+                        value={row.goalId}
+                        onValueChange={(val) =>
+                          setGoalAllocations((prev) => {
+                            const next = [...prev];
+                            next[idx] = { ...next[idx], goalId: val };
+                            return next;
+                          })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Pilih goal" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {goals?.map((g) => (
+                            <SelectItem key={g.id} value={g.id}>
+                              {g.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+
+                      <Input
+                        type="number"
+                        placeholder="Jumlah"
+                        value={row.amount}
+                        onChange={(e) =>
+                          setGoalAllocations((prev) => {
+                            const next = [...prev];
+                            next[idx] = {
+                              ...next[idx],
+                              amount: e.target.value,
+                            };
+                            return next;
+                          })
+                        }
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
             <DialogFooter>
               <Button
@@ -377,7 +464,7 @@ export default function Transactions() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-      </div>
+      </motion.div>
 
       {/* Filters and Search */}
       <div className="flex flex-col sm:flex-row gap-4">
@@ -419,16 +506,20 @@ export default function Transactions() {
                 </p>
               </div>
             ) : (
-              filteredTransactions.map((transaction) => {
+              filteredTransactions.map((transaction, index) => {
                 const categoryInfo = getCategoryInfo(
                   transaction.categoryId || '',
                 );
                 const isIncome = categoryInfo?.type === 'income';
 
                 return (
-                  <div
+                  <motion.div
                     key={transaction.id}
                     className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.3, delay: index * 0.1 }}
+                    whileHover={{ x: 5 }}
                   >
                     <div className="flex items-center space-x-4">
                       <div
@@ -468,21 +559,28 @@ export default function Transactions() {
                           {formatCurrency(Math.abs(transaction.amount))}
                         </p>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDeleteTransaction(transaction.id)}
+                      <motion.div
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
                       >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() =>
+                            handleDeleteTransaction(transaction.id)
+                          }
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </motion.div>
                     </div>
-                  </div>
+                  </motion.div>
                 );
               })
             )}
           </div>
         </CardContent>
       </Card>
-    </div>
+    </motion.div>
   );
 }

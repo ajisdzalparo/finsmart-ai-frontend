@@ -1,3 +1,5 @@
+import React, { useMemo, useState } from 'react';
+import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -9,13 +11,27 @@ import {
   PieChart,
   FileText,
 } from 'lucide-react';
+import { exportReportToExcel } from '@/lib/export';
 
-import { Bar, Pie } from 'react-chartjs-2';
+import { Bar, Pie, Line } from 'react-chartjs-2';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { reportsApi, type Report } from '@/api/reports';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   Chart as ChartJS,
   CategoryScale,
   LinearScale,
   BarElement,
+  PointElement,
+  LineElement,
   ArcElement,
   Title,
   Tooltip,
@@ -26,34 +42,45 @@ ChartJS.register(
   CategoryScale,
   LinearScale,
   BarElement,
+  PointElement,
+  LineElement,
   ArcElement,
   Title,
   Tooltip,
   Legend,
 );
 
-const barData = {
-  labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+// Data placeholder; akan diganti dengan data dari API stats
+const lineDataPlaceholder = {
+  labels: ['2025-01', '2025-02', '2025-03', '2025-04', '2025-05', '2025-06'],
   datasets: [
     {
       label: 'Spending',
       data: [500, 400, 300, 600, 700, 500],
-      backgroundColor: 'rgba(59, 130, 246, 0.7)',
+      borderColor: 'rgba(239, 68, 68, 0.9)',
+      backgroundColor: 'rgba(239, 68, 68, 0.2)',
+      fill: true,
+      tension: 0.3,
+      pointRadius: 2,
     },
   ],
 };
 
 const pieData = {
-  labels: ['Food', 'Transport', 'Shopping', 'Others'],
+  labels: [],
   datasets: [
     {
       label: 'Category Breakdown',
-      data: [35, 25, 20, 20],
+      data: [],
       backgroundColor: [
         'rgba(16, 185, 129, 0.7)',
         'rgba(234, 179, 8, 0.7)',
         'rgba(239, 68, 68, 0.7)',
         'rgba(59, 130, 246, 0.7)',
+        'rgba(99,102,241,0.7)',
+        'rgba(251,146,60,0.7)',
+        'rgba(20,184,166,0.7)',
+        'rgba(168,85,247,0.7)',
       ],
     },
   ],
@@ -86,8 +113,6 @@ const chartOptions = {
   },
 };
 
-
-
 const insights = [
   {
     title: 'Spending Trend',
@@ -109,28 +134,112 @@ const insights = [
   },
 ];
 
-const reports = [
-  {
-    name: 'Monthly Expense Report',
-    description: 'Detailed breakdown of monthly spending by category',
-    date: 'January 2024',
-    status: 'ready',
-  },
-  {
-    name: 'Income vs Expense Analysis',
-    description: 'Compare your income and expenses over time',
-    date: 'Q4 2023',
-    status: 'ready',
-  },
-  {
-    name: 'Goal Progress Report',
-    description: 'Track progress towards your financial goals',
-    date: '2024 YTD',
-    status: 'generating',
-  },
-];
+// Report type now imported from api module
+
+function useReportsQuery() {
+  return useQuery<Report[]>({
+    queryKey: ['reports'],
+    queryFn: async () => {
+      return await reportsApi.list();
+    },
+  });
+}
+
+function useCreateReportMutation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: {
+      reportType: string;
+      periodStart?: string;
+      periodEnd?: string;
+      exportFormat?: string;
+    }) => {
+      return await reportsApi.create(payload);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['reports'] });
+    },
+  });
+}
 
 export default function Reports() {
+  const [lineData, setLineData] = useState(lineDataPlaceholder);
+  const [categoryRows, setCategoryRows] = useState<
+    Array<{ categoryName: string; amount: number }>
+  >([]);
+  const [pieState, setPieState] = useState(pieData);
+  // Ambil data cashflow bulanan untuk Line Chart (Monthly Spending Trend)
+  React.useEffect(() => {
+    let isMounted = true;
+    import('@/api/stats')
+      .then(({ statsApi }) => statsApi.getCashflowMonthly())
+      .then((res) => {
+        if (!isMounted) return;
+        const labels = res.rows.map((r) => r.month);
+        const spending = res.rows.map((r) => Number(r.expense || 0));
+        setLineData({
+          labels,
+          datasets: [
+            {
+              label: 'Spending',
+              data: spending,
+              borderColor: 'rgba(239, 68, 68, 0.9)',
+              backgroundColor: 'rgba(239, 68, 68, 0.2)',
+              fill: true,
+              tension: 0.3,
+              pointRadius: 2,
+            },
+          ],
+        });
+      })
+      .catch(() => {
+        // fallback diam jika gagal
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Ambil data expense by category untuk Pie Chart dan detail
+  React.useEffect(() => {
+    let isMounted = true;
+    import('@/api/stats')
+      .then(({ statsApi }) => statsApi.getExpenseByCategory())
+      .then((res) => {
+        if (!isMounted) return;
+        setCategoryRows(res.rows);
+        const labels = res.rows.map((r) => r.categoryName);
+        const data = res.rows.map((r) => Number(r.amount || 0));
+        setPieState((prev) => ({
+          ...prev,
+          labels,
+          datasets: [
+            {
+              ...prev.datasets[0],
+              data,
+            },
+          ],
+        }));
+      })
+      .catch(() => {});
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+  const { data: reports } = useReportsQuery();
+  const createReport = useCreateReportMutation();
+  const [form, setForm] = useState({
+    reportType: 'expense_by_category',
+    periodStart: '',
+    periodEnd: '',
+    exportFormat: 'json',
+  });
+  const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
+
+  const selectedReport = useMemo(() => {
+    if (!reports || !selectedReportId) return null;
+    return reports.find((r) => r.id === selectedReportId) || null;
+  }, [reports, selectedReportId]);
   const getInsightColor = (type: string) => {
     switch (type) {
       case 'positive':
@@ -156,8 +265,15 @@ export default function Reports() {
             Gain insights into your spending patterns and financial health.
           </p>
         </div>
-        <Button className="bg-primary shadow-md hover:bg-primary/90 flex items-center">
-          <Download className="h-4 w-4 mr-2" /> Export Data
+        <Button
+          className="bg-primary shadow-md hover:bg-primary/90 flex items-center"
+          onClick={() =>
+            createReport.mutate(form, {
+              onSuccess: (rep) => setSelectedReportId(rep.id),
+            })
+          }
+        >
+          <Download className="h-4 w-4 mr-2" /> Generate Report
         </Button>
       </div>
 
@@ -197,7 +313,7 @@ export default function Reports() {
           </CardHeader>
           <CardContent>
             <div className="h-72 flex justify-center p-4 rounded-lg bg-muted/10 dark:bg-muted/20">
-              <Bar data={barData} options={chartOptions} />
+              <Line data={lineData} options={chartOptions} />
             </div>
           </CardContent>
         </Card>
@@ -207,8 +323,50 @@ export default function Reports() {
             <CardTitle>Category Breakdown</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="h-72 flex justify-center p-4 rounded-lg bg-muted/10 dark:bg-muted/20">
-              <Pie data={pieData} options={chartOptions} />
+            <div className="grid gap-4 lg:grid-cols-2">
+              <div className="h-72 flex justify-center p-4 rounded-lg bg-muted/10 dark:bg-muted/20">
+                <Pie data={pieState} options={chartOptions} />
+              </div>
+              <div className="rounded-lg border p-4 bg-muted/10 dark:bg-muted/20">
+                <div className="text-sm font-medium mb-3">Detail</div>
+                {(() => {
+                  const total = categoryRows.reduce(
+                    (s, r) => s + Number(r.amount || 0),
+                    0,
+                  );
+                  const top = [...categoryRows]
+                    .sort((a, b) => Number(b.amount) - Number(a.amount))
+                    .slice(0, 5);
+                  return (
+                    <div className="space-y-2">
+                      {top.map((r, i) => {
+                        const pct =
+                          total > 0 ? (Number(r.amount) / total) * 100 : 0;
+                        return (
+                          <div key={i} className="flex items-center gap-3">
+                            <div className="w-36 text-sm">{r.categoryName}</div>
+                            <div className="flex-1 h-2 bg-muted rounded">
+                              <div
+                                className="h-2 bg-primary rounded"
+                                style={{ width: `${pct.toFixed(2)}%` }}
+                              />
+                            </div>
+                            <div className="w-36 text-right text-sm">
+                              Rp {Number(r.amount).toLocaleString('id-ID')} (
+                              {pct.toFixed(1)}%)
+                            </div>
+                          </div>
+                        );
+                      })}
+                      {total > 0 ? (
+                        <div className="text-xs text-muted-foreground mt-2">
+                          Total pengeluaran: Rp {total.toLocaleString('id-ID')}
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })()}
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -221,7 +379,7 @@ export default function Reports() {
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {reports.map((report, idx) => (
+            {(reports || []).map((report, idx) => (
               <div
                 key={idx}
                 className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/30 dark:hover:bg-muted/40 transition-colors"
@@ -231,31 +389,80 @@ export default function Reports() {
                     <FileText className="h-5 w-5 text-primary" />
                   </div>
                   <div>
-                    <h3 className="font-semibold">{report.name}</h3>
+                    <h3 className="font-semibold">{report.reportType}</h3>
                     <p className="text-sm text-muted-foreground">
-                      {report.description}
+                      {new Date(report.generatedAt).toLocaleString('id-ID')}
                     </p>
                     <div className="flex items-center space-x-2 mt-1">
                       <Calendar className="h-3 w-3 text-muted-foreground" />
                       <span className="text-xs text-muted-foreground">
-                        {report.date}
+                        {report.periodStart
+                          ? new Date(report.periodStart).toLocaleDateString(
+                              'id-ID',
+                            )
+                          : '-'}{' '}
+                        –{' '}
+                        {report.periodEnd
+                          ? new Date(report.periodEnd).toLocaleDateString(
+                              'id-ID',
+                            )
+                          : '-'}
                       </span>
                     </div>
+                    {(() => {
+                      const s = report.summary as unknown;
+                      const ai =
+                        typeof s === 'object' && s !== null && 'aiInsights' in s
+                          ? (
+                              s as {
+                                aiInsights?: Array<{
+                                  title: string;
+                                  message: string;
+                                  priority?: string;
+                                }>;
+                              }
+                            ).aiInsights
+                          : undefined;
+                      if (!ai || ai.length === 0) return null;
+                      return (
+                        <div className="mt-3 space-y-2">
+                          <div className="text-xs font-medium text-muted-foreground">
+                            AI Insights
+                          </div>
+                          <ul className="text-sm space-y-1 list-disc list-inside">
+                            {ai.slice(0, 3).map((it, i) => (
+                              <li key={i}>
+                                <span className="font-medium">{it.title}</span>
+                                {it.message ? (
+                                  <span className="text-muted-foreground">
+                                    {' '}
+                                    — {it.message}
+                                  </span>
+                                ) : null}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <Badge
-                    variant={
-                      report.status === 'ready' ? 'default' : 'secondary'
-                    }
+                  <Badge variant="secondary">Ready</Badge>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => setSelectedReportId(report.id)}
                   >
-                    {report.status === 'ready' ? 'Ready' : 'Generating'}
-                  </Badge>
-                  {report.status === 'ready' && (
-                    <Button size="sm" variant="outline">
-                      <Download className="h-3 w-3 mr-1" /> Download
-                    </Button>
-                  )}
+                    Lihat
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => exportReportToExcel(report)}
+                  >
+                    <Download className="h-3 w-3 mr-1" /> Download Excel
+                  </Button>
                 </div>
               </div>
             ))}
@@ -263,27 +470,268 @@ export default function Reports() {
         </CardContent>
       </Card>
 
+      {/* Selected Report Detail */}
+      {selectedReport && (
+        <Card className="shadow-md">
+          <CardHeader>
+            <CardTitle>Report Detail: {selectedReport.reportType}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="text-sm text-muted-foreground">
+                Periode:{' '}
+                {selectedReport.periodStart
+                  ? new Date(selectedReport.periodStart).toLocaleDateString(
+                      'id-ID',
+                    )
+                  : '-'}{' '}
+                –{' '}
+                {selectedReport.periodEnd
+                  ? new Date(selectedReport.periodEnd).toLocaleDateString(
+                      'id-ID',
+                    )
+                  : '-'}
+              </div>
+
+              {/* Render summary berdasarkan tipe */}
+              {(() => {
+                const s = selectedReport.summary as unknown;
+                if (
+                  selectedReport.reportType === 'expense_by_category' &&
+                  typeof s === 'object' &&
+                  s !== null &&
+                  'expenseByCategory' in s
+                ) {
+                  const rows = (
+                    s as {
+                      expenseByCategory: Array<{
+                        categoryName: string;
+                        amount: number;
+                      }>;
+                    }
+                  ).expenseByCategory as Array<{
+                    categoryName: string;
+                    amount: number;
+                  }>;
+                  return (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="text-left border-b">
+                            <th className="py-2 pr-4">Kategori</th>
+                            <th className="py-2">Jumlah</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {rows.map((r, i) => (
+                            <tr key={i} className="border-b last:border-b-0">
+                              <td className="py-2 pr-4">{r.categoryName}</td>
+                              <td className="py-2">
+                                Rp {Number(r.amount).toLocaleString('id-ID')}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  );
+                }
+                if (
+                  selectedReport.reportType === 'income_vs_expense' &&
+                  typeof s === 'object' &&
+                  s !== null &&
+                  'totals' in s
+                ) {
+                  const totals = (
+                    s as {
+                      totals: {
+                        income: number;
+                        expense: number;
+                        balance: number;
+                      };
+                    }
+                  ).totals;
+                  return (
+                    <div className="grid grid-cols-3 gap-4 text-sm">
+                      <div className="p-3 border rounded">
+                        <div className="text-muted-foreground">Income</div>
+                        <div className="font-semibold">
+                          Rp {Number(totals.income).toLocaleString('id-ID')}
+                        </div>
+                      </div>
+                      <div className="p-3 border rounded">
+                        <div className="text-muted-foreground">Expense</div>
+                        <div className="font-semibold">
+                          Rp {Number(totals.expense).toLocaleString('id-ID')}
+                        </div>
+                      </div>
+                      <div className="p-3 border rounded">
+                        <div className="text-muted-foreground">Balance</div>
+                        <div className="font-semibold">
+                          Rp {Number(totals.balance).toLocaleString('id-ID')}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+                if (
+                  selectedReport.reportType === 'cashflow_monthly' &&
+                  typeof s === 'object' &&
+                  s !== null &&
+                  'cashflowMonthly' in s
+                ) {
+                  const rows = (
+                    s as {
+                      cashflowMonthly: Array<{
+                        month: string;
+                        income: number;
+                        expense: number;
+                        balance: number;
+                      }>;
+                    }
+                  ).cashflowMonthly as Array<{
+                    month: string;
+                    income: number;
+                    expense: number;
+                    balance: number;
+                  }>;
+                  return (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="text-left border-b">
+                            <th className="py-2 pr-4">Bulan</th>
+                            <th className="py-2 pr-4">Income</th>
+                            <th className="py-2 pr-4">Expense</th>
+                            <th className="py-2">Balance</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {rows.map((r, i) => (
+                            <tr key={i} className="border-b last:border-b-0">
+                              <td className="py-2 pr-4">{r.month}</td>
+                              <td className="py-2 pr-4">
+                                Rp {Number(r.income).toLocaleString('id-ID')}
+                              </td>
+                              <td className="py-2 pr-4">
+                                Rp {Number(r.expense).toLocaleString('id-ID')}
+                              </td>
+                              <td className="py-2">
+                                Rp {Number(r.balance).toLocaleString('id-ID')}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  );
+                }
+                // Fallback tampilkan JSON ringkas
+                return (
+                  <pre className="text-xs bg-muted/30 p-3 rounded overflow-auto max-h-80">
+                    {JSON.stringify(selectedReport.summary, null, 2)}
+                  </pre>
+                );
+              })()}
+
+              {/* AI Insights untuk selected report */}
+              {(() => {
+                const s = selectedReport.summary as unknown;
+                const ai =
+                  typeof s === 'object' && s !== null && 'aiInsights' in s
+                    ? (
+                        s as {
+                          aiInsights?: Array<{
+                            title: string;
+                            message: string;
+                            priority?: string;
+                          }>;
+                        }
+                      ).aiInsights
+                    : undefined;
+                if (!ai || ai.length === 0) return null;
+                return (
+                  <div className="mt-4">
+                    <div className="text-sm font-medium mb-2">AI Insights</div>
+                    <ul className="text-sm space-y-1 list-disc list-inside">
+                      {ai.slice(0, 3).map((it, i) => (
+                        <li key={i}>
+                          <span className="font-medium">{it.title}</span>
+                          {it.message ? (
+                            <span className="text-muted-foreground">
+                              {' '}
+                              — {it.message}
+                            </span>
+                          ) : null}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                );
+              })()}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Generate New Report */}
       <Card className="shadow-md">
         <CardHeader>
           <CardTitle>Generate New Report</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4 md:grid-cols-3">
-            {[
-              { icon: BarChart3, label: 'Expense Report' },
-              { icon: TrendingUp, label: 'Trend Analysis' },
-              { icon: PieChart, label: 'Category Report' },
-            ].map((item, idx) => (
-              <Button
-                key={idx}
-                variant="outline"
-                className="h-24 flex flex-col justify-center items-center gap-2 hover:shadow-md"
+          <div className="grid gap-4 md:grid-cols-4">
+            <div className="space-y-2">
+              <Label>Jenis Laporan</Label>
+              <Select
+                value={form.reportType}
+                onValueChange={(v) => setForm((f) => ({ ...f, reportType: v }))}
               >
-                <item.icon className="h-6 w-6" />
-                <span className="text-sm font-medium">{item.label}</span>
+                <SelectTrigger>
+                  <SelectValue placeholder="Pilih jenis" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="expense_by_category">
+                    Expense by Category
+                  </SelectItem>
+                  <SelectItem value="income_vs_expense">
+                    Income vs Expense
+                  </SelectItem>
+                  <SelectItem value="cashflow_monthly">
+                    Cashflow Monthly
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Dari</Label>
+              <Input
+                type="date"
+                value={form.periodStart}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, periodStart: e.target.value }))
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Sampai</Label>
+              <Input
+                type="date"
+                value={form.periodEnd}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, periodEnd: e.target.value }))
+                }
+              />
+            </div>
+            <div className="space-y-2 flex items-end">
+              <Button
+                className="w-full"
+                onClick={() => createReport.mutate(form)}
+                disabled={createReport.isPending}
+              >
+                {createReport.isPending ? 'Generating...' : 'Generate'}
               </Button>
-            ))}
+            </div>
           </div>
         </CardContent>
       </Card>

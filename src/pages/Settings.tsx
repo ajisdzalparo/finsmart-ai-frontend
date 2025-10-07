@@ -22,9 +22,14 @@ import {
   DollarSign,
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
+import { useSettings } from '@/context/SettingsContext';
 import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { useCompleteProfileMutation } from '@/api/auth';
+import {
+  useCompleteProfileMutation,
+  useUpdateNameMutation,
+  useChangePasswordMutation,
+} from '@/api/auth';
 import { useToast } from '@/hooks/use-toast';
 
 export default function Settings() {
@@ -32,6 +37,10 @@ export default function Settings() {
   const { user } = useAuth();
   const { toast } = useToast();
   const completeProfileMutation = useCompleteProfileMutation();
+  const updateNameMutation = useUpdateNameMutation();
+  const changePasswordMutation = useChangePasswordMutation();
+  const { currency, setCurrency, locale, setLocale, aiModel, setAIModel } =
+    useSettings();
 
   // Profile completion state
   const [interests, setInterests] = useState<string[]>(user?.interests || []);
@@ -41,6 +50,10 @@ export default function Settings() {
   const [expenseCategories, setExpenseCategories] = useState<string[]>(
     user?.expenseCategories || [],
   );
+  const [newName, setNewName] = useState<string>(user?.name || '');
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
 
   const availableInterests = [
     'Investasi Saham',
@@ -113,6 +126,47 @@ export default function Settings() {
     }
   };
 
+  const handleUpdateName = async () => {
+    try {
+      await updateNameMutation.mutateAsync({ name: newName });
+      toast({ title: 'Berhasil', description: 'Nama berhasil diperbarui' });
+      window.location.reload();
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Gagal memperbarui nama',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (newPassword !== confirmPassword) {
+      toast({
+        title: 'Error',
+        description: 'Konfirmasi password tidak cocok',
+        variant: 'destructive',
+      });
+      return;
+    }
+    try {
+      await changePasswordMutation.mutateAsync({
+        currentPassword,
+        newPassword,
+      });
+      toast({ title: 'Berhasil', description: 'Password berhasil diganti' });
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: 'Gagal mengganti password',
+        variant: 'destructive',
+      });
+    }
+  };
+
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -135,21 +189,25 @@ export default function Settings() {
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="name">Full Name</Label>
-              <Input id="name" defaultValue={user?.name || 'John Doe'} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="email">Email Address</Label>
               <Input
-                id="email"
-                type="email"
-                defaultValue={user?.email || 'john.doe@example.com'}
+                id="name"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="phone">Phone Number</Label>
-              <Input id="phone" type="tel" placeholder="+1 (555) 123-4567" />
+              <Label>Email Address</Label>
+              <div className="text-sm p-2 rounded border bg-muted/20 break-all">
+                {user?.email || '-'}
+              </div>
             </div>
-            <Button className="w-full">Update Profile</Button>
+            <Button
+              className="w-full"
+              onClick={handleUpdateName}
+              disabled={updateNameMutation.isPending}
+            >
+              {updateNameMutation.isPending ? 'Menyimpan...' : 'Update Name'}
+            </Button>
           </CardContent>
         </Card>
 
@@ -298,15 +356,30 @@ export default function Settings() {
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label>Current Password</Label>
-              <Input type="password" placeholder="Enter current password" />
+              <Input
+                type="password"
+                placeholder="Enter current password"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+              />
             </div>
             <div className="space-y-2">
               <Label>New Password</Label>
-              <Input type="password" placeholder="Enter new password" />
+              <Input
+                type="password"
+                placeholder="Enter new password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+              />
             </div>
             <div className="space-y-2">
               <Label>Confirm Password</Label>
-              <Input type="password" placeholder="Confirm new password" />
+              <Input
+                type="password"
+                placeholder="Confirm new password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+              />
             </div>
 
             <Separator />
@@ -323,7 +396,15 @@ export default function Settings() {
               </Button>
             </div>
 
-            <Button className="w-full">Update Password</Button>
+            <Button
+              className="w-full"
+              onClick={handleChangePassword}
+              disabled={changePasswordMutation.isPending}
+            >
+              {changePasswordMutation.isPending
+                ? 'Menyimpan...'
+                : 'Update Password'}
+            </Button>
           </CardContent>
         </Card>
 
@@ -337,21 +418,46 @@ export default function Settings() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label>Currency</Label>
-              <select className="w-full p-2 border border-input bg-background rounded-md">
-                <option value="usd">USD ($)</option>
-                <option value="eur">EUR (€)</option>
-                <option value="gbp">GBP (£)</option>
-                <option value="jpy">JPY (¥)</option>
+              <Label>AI Model</Label>
+              <select
+                className="w-full p-2 border border-input bg-background rounded-md"
+                value={aiModel}
+                onChange={(e) =>
+                  setAIModel(e.target.value as 'deepseek' | 'gemini')
+                }
+              >
+                <option value="deepseek">DeepSeek</option>
+                <option value="gemini">Gemini</option>
               </select>
             </div>
 
             <div className="space-y-2">
-              <Label>Date Format</Label>
-              <select className="w-full p-2 border border-input bg-background rounded-md">
-                <option value="mm/dd/yyyy">MM/DD/YYYY</option>
-                <option value="dd/mm/yyyy">DD/MM/YYYY</option>
-                <option value="yyyy-mm-dd">YYYY-MM-DD</option>
+              <Label>Currency</Label>
+              <select
+                className="w-full p-2 border border-input bg-background rounded-md"
+                value={currency}
+                onChange={(e) => setCurrency(e.target.value as any)}
+              >
+                <option value="IDR">IDR (Rp)</option>
+                <option value="USD">USD ($)</option>
+                <option value="EUR">EUR (€)</option>
+                <option value="GBP">GBP (£)</option>
+                <option value="JPY">JPY (¥)</option>
+              </select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Locale</Label>
+              <select
+                className="w-full p-2 border border-input bg-background rounded-md"
+                value={locale}
+                onChange={(e) => setLocale(e.target.value)}
+              >
+                <option value="id-ID">Indonesia (id-ID)</option>
+                <option value="en-US">English (en-US)</option>
+                <option value="en-GB">English UK (en-GB)</option>
+                <option value="ja-JP">日本語 (ja-JP)</option>
+                <option value="de-DE">Deutsch (de-DE)</option>
               </select>
             </div>
 

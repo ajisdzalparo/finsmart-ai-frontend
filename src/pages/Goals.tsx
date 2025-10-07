@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState } from 'react';
+import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { PlusCircle, BarChart3, Target } from 'lucide-react';
 import {
@@ -104,9 +105,19 @@ export default function Goals() {
   }
 
   return (
-    <div className="space-y-8">
+    <motion.div
+      className="space-y-8"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+    >
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <motion.div
+        className="flex justify-between items-center"
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.1 }}
+      >
         <div>
           <h1 className="text-3xl font-bold text-foreground">
             Financial Goals
@@ -116,41 +127,59 @@ export default function Goals() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setShowInsights(true)}>
-            <BarChart3 className="h-4 w-4 mr-2" />
-            Insights
-          </Button>
-          <Button variant="outline" onClick={() => setShowQuickCreate(true)}>
-            <Target className="h-4 w-4 mr-2" />
-            Quick Create
-          </Button>
-          <Button
-            onClick={() => openGoalModal()}
-            className="bg-primary shadow-primary hover:shadow-elevated"
-          >
-            <PlusCircle className="h-4 w-4 mr-2" />
-            Add Goal
-          </Button>
+          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+            <Button variant="outline" onClick={() => setShowInsights(true)}>
+              <BarChart3 className="h-4 w-4 mr-2" />
+              Insights
+            </Button>
+          </motion.div>
+          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+            <Button variant="outline" onClick={() => setShowQuickCreate(true)}>
+              <Target className="h-4 w-4 mr-2" />
+              Quick Create
+            </Button>
+          </motion.div>
+          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+            <Button
+              onClick={() => openGoalModal()}
+              className="bg-primary shadow-primary hover:shadow-elevated"
+            >
+              <PlusCircle className="h-4 w-4 mr-2" />
+              Add Goal
+            </Button>
+          </motion.div>
         </div>
-      </div>
+      </motion.div>
 
       {/* Goals Overview */}
       {goals.length === 0 ? (
         <EmptyGoalsState onCreateGoal={() => openGoalModal()} />
       ) : (
         <>
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {goals.map((goal) => (
-              <GoalProgressCard
+          <motion.div
+            className="grid gap-6 md:grid-cols-2 lg:grid-cols-3"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+          >
+            {goals.map((goal, index) => (
+              <motion.div
                 key={goal.id}
-                goal={goal}
-                onAddMoney={openSmartProgress}
-                onEdit={openGoalModal}
-                onDelete={openDeleteModal}
-                isDeleting={deleteGoalMutation.isPending}
-              />
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: 0.4 + index * 0.1 }}
+                whileHover={{ scale: 1.02 }}
+              >
+                <GoalProgressCard
+                  goal={goal}
+                  onAddMoney={openSmartProgress}
+                  onEdit={openGoalModal}
+                  onDelete={openDeleteModal}
+                  isDeleting={deleteGoalMutation.isPending}
+                />
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
 
           {/* Goals Summary */}
           <GoalsSummary goals={goals} />
@@ -241,6 +270,6 @@ export default function Goals() {
           )}
         </DialogContent>
       </Dialog>
-    </div>
+    </motion.div>
   );
 }

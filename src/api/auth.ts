@@ -102,3 +102,25 @@ export const useCompleteProfileMutation = () => {
     },
   });
 };
+
+// ======== Update Name & Change Password ========
+export const useUpdateNameMutation = () => {
+  return useMutation({
+    mutationFn: async (payload: { name: string }) => {
+      const { data: res } = await api.post('/auth/update-name', payload);
+      return res as { name: string; email: string };
+    },
+  });
+};
+
+export const useChangePasswordMutation = () => {
+  return useMutation({
+    mutationFn: async (payload: {
+      currentPassword: string;
+      newPassword: string;
+    }) => {
+      const { data: res } = await api.post('/auth/change-password', payload);
+      return res as { ok: boolean };
+    },
+  });
+};

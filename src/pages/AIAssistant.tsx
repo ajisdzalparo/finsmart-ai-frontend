@@ -1,393 +1,570 @@
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
+import { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-  Bot,
-  User,
-  Send,
-  Sparkles,
-  MessageSquare,
-  PlusCircle,
-  Trash2,
+  Brain,
+  Lightbulb,
   TrendingUp,
-  DollarSign,
   Target,
+  AlertTriangle,
+  CheckCircle,
+  RefreshCw,
+  Trash2,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
-
-interface Message {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-  timestamp: Date;
-}
-
-interface Conversation {
-  id: string;
-  title: string;
-  lastMessage: string;
-  timestamp: Date;
-}
-
-const mockConversations: Conversation[] = [
-  {
-    id: '1',
-    title: 'Budget Planning Help',
-    lastMessage: 'Let me help you create a budget plan...',
-    timestamp: new Date(Date.now() - 1000 * 60 * 30), // 30 minutes ago
-  },
-  {
-    id: '2',
-    title: 'Investment Advice',
-    lastMessage: 'Based on your risk profile...',
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2), // 2 hours ago
-  },
-  {
-    id: '3',
-    title: 'Expense Analysis',
-    lastMessage: "I notice you're spending a lot on...",
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24), // 1 day ago
-  },
-];
-
-const mockMessages: Message[] = [
-  {
-    id: '1',
-    role: 'assistant',
-    content:
-      "Hi! I'm your AI financial assistant. I can help you with budgeting, investment advice, expense tracking, and financial planning. What would you like to know?",
-    timestamp: new Date(Date.now() - 1000 * 60 * 10),
-  },
-];
-
-const suggestedPrompts = [
-  {
-    icon: TrendingUp,
-    text: 'Analyze my spending patterns',
-    category: 'Analysis',
-  },
-  { icon: Target, text: 'Help me set a savings goal', category: 'Goals' },
-  { icon: DollarSign, text: 'Create a monthly budget', category: 'Budget' },
-  { icon: Sparkles, text: 'Investment recommendations', category: 'Invest' },
-];
+import { aiApi, AIInsight, AIRecommendation, AIDashboard } from '@/api/ai';
+import { useCurrencyFormatter } from '@/lib/currency';
+import { useToast } from '@/hooks/use-toast';
 
 export default function AIAssistant() {
-  const [messages, setMessages] = useState<Message[]>(mockMessages);
-  const [inputValue, setInputValue] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
-  const [conversations] = useState<Conversation[]>(mockConversations);
-  const [activeConversation, setActiveConversation] =
-    useState<string>('current');
+  const [dashboard, setDashboard] = useState<AIDashboard | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const { toast } = useToast();
+  const { format } = useCurrencyFormatter();
 
-  const handleSendMessage = async (content?: string) => {
-    const messageContent = content || inputValue.trim();
-    if (!messageContent) return;
+  useEffect(() => {
+    loadAIDashboard();
+  }, []);
 
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      role: 'user',
-      content: messageContent,
-      timestamp: new Date(),
-    };
-
-    setMessages((prev) => [...prev, userMessage]);
-    setInputValue('');
-    setIsTyping(true);
-
-    // Simulate AI response
-    setTimeout(() => {
-      const aiResponse: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: getAIResponse(messageContent),
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, aiResponse]);
-      setIsTyping(false);
-    }, 1500);
-  };
-
-  const getAIResponse = (userMessage: string): string => {
-    const lowercaseMessage = userMessage.toLowerCase();
-
-    if (lowercaseMessage.includes('budget')) {
-      return "I'd be happy to help you create a budget! Based on your transaction history, I can see your monthly income and expenses. Let me suggest a 50/30/20 budget rule: 50% for needs, 30% for wants, and 20% for savings and debt repayment. Would you like me to create a personalized budget based on your spending patterns?";
-    } else if (lowercaseMessage.includes('invest')) {
-      return "Great question about investing! Based on your current financial situation, I'd recommend starting with an emergency fund (3-6 months of expenses) before investing. For beginners, consider index funds or ETFs for diversification. Your risk tolerance and timeline are important factors. Would you like me to analyze your readiness for investing?";
-    } else if (
-      lowercaseMessage.includes('save') ||
-      lowercaseMessage.includes('goal')
-    ) {
-      return "Setting savings goals is excellent for financial health! I can help you create SMART goals (Specific, Measurable, Achievable, Relevant, Time-bound). Based on your income and expenses, I can calculate how much you should save monthly to reach your target. What's your savings goal?";
-    } else if (
-      lowercaseMessage.includes('spending') ||
-      lowercaseMessage.includes('expense')
-    ) {
-      return "I've analyzed your spending patterns from your transaction history. Your top spending categories are: Food & Dining (35%), Transportation (25%), and Shopping (20%). I notice some areas where you could potentially save money. Would you like specific recommendations for reducing expenses?";
-    } else {
-      return "I understand you're looking for financial guidance. I can help with budgeting, saving strategies, investment basics, expense tracking, and goal setting. Could you be more specific about what financial area you'd like assistance with?";
+  const loadAIDashboard = async () => {
+    try {
+      setIsLoading(true);
+      const data = await aiApi.getAIDashboard();
+      setDashboard(data);
+    } catch (error) {
+      console.error('Error loading AI dashboard:', error);
+      toast({
+        title: 'Error',
+        description: 'Gagal memuat data AI',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSendMessage();
+  const generateNewInsights = async () => {
+    try {
+      setIsGenerating(true);
+      await aiApi.generateInsights();
+      await loadAIDashboard();
+      toast({
+        title: 'Berhasil',
+        description: 'AI insights baru telah dihasilkan',
+      });
+    } catch (error) {
+      console.error('Error generating insights:', error);
+      toast({
+        title: 'Error',
+        description: 'Gagal menghasilkan insights baru',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsGenerating(false);
     }
   };
 
-  const formatTime = (date: Date) => {
-    return new Intl.DateTimeFormat('id-ID', {
-      hour: '2-digit',
-      minute: '2-digit',
-    }).format(date);
+  const generateNewRecommendations = async () => {
+    try {
+      setIsGenerating(true);
+      await aiApi.generateRecommendations();
+      await loadAIDashboard();
+      toast({
+        title: 'Berhasil',
+        description: 'AI recommendations baru telah dihasilkan',
+      });
+    } catch (error) {
+      console.error('Error generating recommendations:', error);
+      toast({
+        title: 'Error',
+        description: 'Gagal menghasilkan recommendations baru',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
-  return (
-    <div className="h-[calc(100vh-8rem)] flex gap-6">
-      {/* Conversation Sidebar */}
-      <div className="w-80 flex flex-col">
-        <Card className="h-full shadow-card">
-          <CardHeader className="pb-4">
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
-                <MessageSquare className="h-5 w-5 text-primary" />
-                Conversations
-              </CardTitle>
-              <Button size="sm" variant="ghost">
-                <PlusCircle className="h-4 w-4" />
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="flex-1 p-0">
-            <ScrollArea className="h-full">
-              <div className="p-4 space-y-2">
-                {/* Current Conversation */}
-                <div
-                  className={`p-3 rounded-lg cursor-pointer transition-colors ${
-                    activeConversation === 'current'
-                      ? 'bg-primary/10 border border-primary/20'
-                      : 'hover:bg-muted/50'
-                  }`}
-                  onClick={() => setActiveConversation('current')}
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <h4 className="font-medium text-sm">Current Chat</h4>
-                    <Badge variant="secondary" className="text-xs">
-                      Active
-                    </Badge>
-                  </div>
-                  <p className="text-xs text-muted-foreground line-clamp-2">
-                    {messages[messages.length - 1]?.content ||
-                      'New conversation'}
-                  </p>
-                </div>
+  const markRecommendationAsRead = async (recommendationId: string) => {
+    try {
+      await aiApi.markRecommendationAsRead(recommendationId);
+      await loadAIDashboard();
+    } catch (error) {
+      console.error('Error marking recommendation as read:', error);
+    }
+  };
 
-                {/* Previous Conversations */}
-                {conversations.map((conversation) => (
-                  <div
-                    key={conversation.id}
-                    className={`p-3 rounded-lg cursor-pointer transition-colors group ${
-                      activeConversation === conversation.id
-                        ? 'bg-primary/10 border border-primary/20'
-                        : 'hover:bg-muted/50'
-                    }`}
-                    onClick={() => setActiveConversation(conversation.id)}
-                  >
-                    <div className="flex items-center justify-between mb-1">
-                      <h4 className="font-medium text-sm line-clamp-1">
-                        {conversation.title}
-                      </h4>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 p-0"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    </div>
-                    <p className="text-xs text-muted-foreground line-clamp-2">
-                      {conversation.lastMessage}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {formatTime(conversation.timestamp)}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </ScrollArea>
-          </CardContent>
-        </Card>
-      </div>
+  const deleteInsight = async (insightId: string) => {
+    try {
+      await aiApi.deleteInsight(insightId);
+      await loadAIDashboard();
+      toast({
+        title: 'Berhasil',
+        description: 'Insight telah dihapus',
+      });
+    } catch (error) {
+      console.error('Error deleting insight:', error);
+      toast({
+        title: 'Error',
+        description: 'Gagal menghapus insight',
+        variant: 'destructive',
+      });
+    }
+  };
 
-      {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col">
-        <Card className="h-full shadow-card flex flex-col">
-          {/* Chat Header */}
-          <CardHeader className="border-b">
-            <div className="flex items-center gap-3">
-              <Avatar className="bg-background">
-                <AvatarFallback className="bg-background text-primary">
-                  <Bot className="h-5 w-5" />
-                </AvatarFallback>
-              </Avatar>
-              <div>
-                <CardTitle className="text-lg">
-                  AI Financial Assistant
-                </CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  Your personal finance advisor powered by AI
-                </p>
-              </div>
-              <div className="ml-auto flex items-center gap-2">
-                <Badge
-                  variant="secondary"
-                  className="bg-success/10 text-success"
-                >
-                  <div className="w-2 h-2 bg-success rounded-full mr-1" />
-                  Online
-                </Badge>
-              </div>
-            </div>
-          </CardHeader>
+  const getInsightIcon = (type: string) => {
+    switch (type) {
+      case 'spending_analysis':
+        return TrendingUp;
+      case 'goal_recommendation':
+        return Target;
+      case 'budget_advice':
+        return Lightbulb;
+      case 'investment_advice':
+        return Brain;
+      default:
+        return Brain;
+    }
+  };
 
-          {/* Messages */}
-          <CardContent className="flex-1 p-0 overflow-hidden">
-            <ScrollArea className="h-full">
-              <div className="p-6 space-y-4">
-                {messages.map((message) => (
-                  <div
-                    key={message.id}
-                    className={`flex gap-3 ${
-                      message.role === 'user' ? 'flex-row-reverse' : ''
-                    }`}
-                  >
-                    <Avatar
-                      className={
-                        message.role === 'user' ? 'bg-muted' : 'bg-background'
-                      }
-                    >
-                      <AvatarFallback
-                        className={
-                          message.role === 'user'
-                            ? 'bg-muted'
-                            : 'bg-primary text-primary'
-                        }
-                      >
-                        {message.role === 'user' ? (
-                          <User className="h-4 w-4" />
-                        ) : (
-                          <Bot className="h-4 w-4" />
-                        )}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div
-                      className={`max-w-[70%] ${
-                        message.role === 'user' ? 'text-right' : ''
-                      }`}
-                    >
-                      <div
-                        className={`p-3 rounded-lg ${
-                          message.role === 'user'
-                            ? 'bg-background text-primary-foreground ml-auto'
-                            : 'bg-muted'
-                        }`}
-                      >
-                        <p className="text-sm leading-relaxed">
-                          {message.content}
-                        </p>
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {formatTime(message.timestamp)}
-                      </p>
-                    </div>
-                  </div>
-                ))}
+  const getInsightColor = (priority: string) => {
+    switch (priority) {
+      case 'high':
+        return 'text-destructive';
+      case 'medium':
+        return 'text-warning';
+      case 'low':
+        return 'text-success';
+      default:
+        return 'text-muted-foreground';
+    }
+  };
 
-                {isTyping && (
-                  <div className="flex gap-3">
-                    <Avatar className="bg-background">
-                      <AvatarFallback className="bg-background text-primary">
-                        <Bot className="h-4 w-4" />
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="bg-muted p-3 rounded-lg">
-                      <div className="flex gap-1">
-                        <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" />
-                        <div
-                          className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce"
-                          style={{ animationDelay: '0.1s' }}
-                        />
-                        <div
-                          className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce"
-                          style={{ animationDelay: '0.2s' }}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
+  const getRecommendationIcon = (type: string) => {
+    switch (type) {
+      case 'spending_optimization':
+        return TrendingUp;
+      case 'savings_improvement':
+        return Target;
+      case 'goal_acceleration':
+        return CheckCircle;
+      case 'investment_advice':
+        return Brain;
+      default:
+        return Lightbulb;
+    }
+  };
 
-                {messages.length === 1 && (
-                  <div className="space-y-4 mt-8">
-                    <h3 className="text-sm font-medium text-muted-foreground text-center">
-                      Suggested prompts to get started:
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {suggestedPrompts.map((prompt, index) => {
-                        const Icon = prompt.icon;
-                        return (
-                          <Button
-                            key={index}
-                            variant="outline"
-                            className="h-auto p-4 justify-start hover:shadow-md transition-shadow"
-                            onClick={() => handleSendMessage(prompt.text)}
-                          >
-                            <Icon className="h-4 w-4 mr-3 text-primary" />
-                            <div className="text-left">
-                              <div className="text-sm font-medium">
-                                {prompt.text}
-                              </div>
-                              <div className="text-xs text-muted-foreground">
-                                {prompt.category}
-                              </div>
-                            </div>
-                          </Button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </ScrollArea>
-          </CardContent>
-
-          {/* Message Input */}
-          <div className="p-4 border-t">
-            <div className="flex gap-2">
-              <Input
-                placeholder="Ask me about your finances..."
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                onKeyPress={handleKeyPress}
-                className="flex-1"
-              />
-              <Button
-                onClick={() => handleSendMessage()}
-                disabled={!inputValue.trim() || isTyping}
-                className="bg-primary shadow-primary hover:shadow-elevated"
-              >
-                <Send className="h-4 w-4" />
-              </Button>
-            </div>
-            <p className="text-xs text-muted-foreground mt-2 text-center">
-              AI can make mistakes. Verify important financial decisions.
+  if (isLoading) {
+    return (
+      <div className="space-y-8">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground">AI Assistant</h1>
+            <p className="text-muted-foreground mt-2">
+              Asisten AI untuk analisis finansial Anda
             </p>
           </div>
-        </Card>
+        </div>
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {[...Array(6)].map((_, i) => (
+            <Card key={i} className="animate-pulse">
+              <CardContent className="p-6">
+                <div className="h-4 bg-muted rounded w-3/4 mb-2"></div>
+                <div className="h-6 bg-muted rounded w-1/2"></div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </div>
-    </div>
+    );
+  }
+
+  return (
+    <motion.div
+      className="space-y-8"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+    >
+      {/* Header */}
+      <motion.div
+        className="flex justify-between items-center"
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.1 }}
+      >
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">AI Assistant</h1>
+          <p className="text-muted-foreground mt-2">
+            Asisten AI untuk analisis finansial Anda
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+            <Button
+              variant="outline"
+              onClick={generateNewInsights}
+              disabled={isGenerating}
+            >
+              <RefreshCw
+                className={`h-4 w-4 mr-2 ${isGenerating ? 'animate-spin' : ''}`}
+              />
+              Generate Insights
+            </Button>
+          </motion.div>
+          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+            <Button
+              onClick={generateNewRecommendations}
+              disabled={isGenerating}
+            >
+              <Brain className="h-4 w-4 mr-2" />
+              Generate Recommendations
+            </Button>
+          </motion.div>
+        </div>
+      </motion.div>
+
+      {/* Statistics */}
+      <motion.div
+        className="grid gap-6 md:grid-cols-3"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.2 }}
+      >
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center space-x-2">
+              <Brain className="h-8 w-8 text-primary" />
+              <div>
+                <p className="text-2xl font-bold">
+                  {dashboard?.statistics.totalInsights || 0}
+                </p>
+                <p className="text-sm text-muted-foreground">Total Insights</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center space-x-2">
+              <Lightbulb className="h-8 w-8 text-accent" />
+              <div>
+                <p className="text-2xl font-bold">
+                  {dashboard?.statistics.totalRecommendations || 0}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Total Recommendations
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center space-x-2">
+              <AlertTriangle className="h-8 w-8 text-warning" />
+              <div>
+                <p className="text-2xl font-bold">
+                  {dashboard?.statistics.unreadRecommendations || 0}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Unread Recommendations
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* AI Content */}
+      <Tabs defaultValue="insights" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="insights">AI Insights</TabsTrigger>
+          <TabsTrigger value="recommendations">Recommendations</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="insights" className="space-y-6">
+          <motion.div
+            className="grid gap-6"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+          >
+            {dashboard?.insights && dashboard.insights.length > 0 ? (
+              dashboard.insights.map((insight, index) => {
+                const Icon = getInsightIcon(insight.type);
+                const color = getInsightColor(insight.priority);
+
+                return (
+                  <motion.div
+                    key={insight.id}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.3, delay: 0.4 + index * 0.1 }}
+                    whileHover={{ scale: 1.01 }}
+                  >
+                    <Card>
+                      <CardHeader>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-3">
+                            <Icon className={`h-5 w-5 ${color}`} />
+                            <CardTitle className="text-lg">
+                              {insight.title}
+                            </CardTitle>
+                            <Badge variant="outline" className={color}>
+                              {insight.priority}
+                            </Badge>
+                          </div>
+                          <motion.div
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
+                          >
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => deleteInsight(insight.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </motion.div>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-muted-foreground mb-4">
+                          {insight.message}
+                        </p>
+                        {insight.data?.summary && (
+                          <div className="mt-3 p-3 rounded-md border border-border bg-muted/30">
+                            <div className="text-sm font-medium mb-2">
+                              Ringkasan
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-sm">
+                              <div>
+                                <div className="text-muted-foreground">
+                                  Pendapatan
+                                </div>
+                                <div className="font-semibold">
+                                  {format(
+                                    Number(
+                                      insight.data.summary.totalIncome || 0,
+                                    ),
+                                  )}
+                                </div>
+                              </div>
+                              <div>
+                                <div className="text-muted-foreground">
+                                  Pengeluaran
+                                </div>
+                                <div className="font-semibold">
+                                  {format(
+                                    Number(
+                                      insight.data.summary.totalExpense || 0,
+                                    ),
+                                  )}
+                                </div>
+                              </div>
+                              <div>
+                                <div className="text-muted-foreground">
+                                  Saldo
+                                </div>
+                                <div
+                                  className={`font-semibold ${
+                                    Number(
+                                      insight.data.summary.totalIncome || 0,
+                                    ) -
+                                      Number(
+                                        insight.data.summary.totalExpense || 0,
+                                      ) <
+                                    0
+                                      ? 'text-destructive'
+                                      : 'text-success'
+                                  }`}
+                                >
+                                  {format(
+                                    Number(
+                                      insight.data.summary.totalIncome || 0,
+                                    ) -
+                                      Number(
+                                        insight.data.summary.totalExpense || 0,
+                                      ),
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                            {Array.isArray(insight.data.summary.goals) &&
+                              insight.data.summary.goals.length > 0 && (
+                                <div className="mt-3">
+                                  <div className="text-sm font-medium mb-2">
+                                    Goals
+                                  </div>
+                                  <div className="space-y-1 text-sm">
+                                    {insight.data.summary.goals.map(
+                                      (g: any) => (
+                                        <div
+                                          key={g.id}
+                                          className="flex justify-between"
+                                        >
+                                          <div className="text-muted-foreground">
+                                            {g.name}
+                                          </div>
+                                          <div className="font-medium">
+                                            {format(
+                                              Number(g.currentAmount || 0),
+                                            )}{' '}
+                                            /{' '}
+                                            {format(
+                                              Number(g.targetAmount || 0),
+                                            )}
+                                          </div>
+                                        </div>
+                                      ),
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+                          </div>
+                        )}
+                        <div className="text-xs text-muted-foreground">
+                          Generated:{' '}
+                          {new Date(insight.generatedAt).toLocaleString(
+                            'id-ID',
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                );
+              })
+            ) : (
+              <Card>
+                <CardContent className="p-8 text-center">
+                  <Brain className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-medium mb-2">
+                    Belum ada AI Insights
+                  </h3>
+                  <p className="text-muted-foreground mb-4">
+                    Klik "Generate Insights" untuk mendapatkan analisis AI
+                  </p>
+                  <Button onClick={generateNewInsights} disabled={isGenerating}>
+                    <Brain className="h-4 w-4 mr-2" />
+                    Generate Insights
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+          </motion.div>
+        </TabsContent>
+
+        <TabsContent value="recommendations" className="space-y-6">
+          <motion.div
+            className="grid gap-6"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+          >
+            {dashboard?.recommendations &&
+            dashboard.recommendations.length > 0 ? (
+              dashboard.recommendations.map((recommendation, index) => {
+                const Icon = getRecommendationIcon(recommendation.type);
+
+                return (
+                  <motion.div
+                    key={recommendation.id}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.3, delay: 0.4 + index * 0.1 }}
+                    whileHover={{ scale: 1.01 }}
+                  >
+                    <Card className={recommendation.isRead ? 'opacity-60' : ''}>
+                      <CardHeader>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-3">
+                            <Icon className="h-5 w-5 text-primary" />
+                            <CardTitle className="text-lg">
+                              {recommendation.title}
+                            </CardTitle>
+                            <Badge
+                              variant={
+                                recommendation.priority === 'high'
+                                  ? 'destructive'
+                                  : 'default'
+                              }
+                            >
+                              {recommendation.priority}
+                            </Badge>
+                            {!recommendation.isRead && (
+                              <Badge variant="secondary">New</Badge>
+                            )}
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            {!recommendation.isRead && (
+                              <motion.div
+                                whileHover={{ scale: 1.1 }}
+                                whileTap={{ scale: 0.9 }}
+                              >
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() =>
+                                    markRecommendationAsRead(recommendation.id)
+                                  }
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                              </motion.div>
+                            )}
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-muted-foreground mb-4">
+                          {recommendation.message}
+                        </p>
+                        {recommendation.amount != null && (
+                          <div className="text-sm font-medium text-primary mb-2">
+                            Amount: {format(Number(recommendation.amount))}
+                          </div>
+                        )}
+                        <div className="text-xs text-muted-foreground">
+                          Created:{' '}
+                          {new Date(recommendation.createdAt).toLocaleString(
+                            'id-ID',
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                );
+              })
+            ) : (
+              <Card>
+                <CardContent className="p-8 text-center">
+                  <Lightbulb className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-medium mb-2">
+                    Belum ada Recommendations
+                  </h3>
+                  <p className="text-muted-foreground mb-4">
+                    Klik "Generate Recommendations" untuk mendapatkan saran AI
+                  </p>
+                  <Button
+                    onClick={generateNewRecommendations}
+                    disabled={isGenerating}
+                  >
+                    <Lightbulb className="h-4 w-4 mr-2" />
+                    Generate Recommendations
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+          </motion.div>
+        </TabsContent>
+      </Tabs>
+    </motion.div>
   );
 }

@@ -29,6 +29,10 @@ export interface CreateTransactionData {
   transactionDate: string;
   categoryId?: string;
   templateId?: string;
+  goalAllocations?: Array<{
+    goalId: string;
+    amount: number;
+  }>;
 }
 
 export interface UpdateTransactionData {
