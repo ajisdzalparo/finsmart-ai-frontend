@@ -1,6 +1,7 @@
 import { Toaster } from '@/components/ui/toaster';
 import { Toaster as Sonner } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { PWAUpdatePrompt } from '@/components/ui/pwa-update-prompt';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import AppLayout from './components/layout/AppLayout';
@@ -58,6 +59,21 @@ const App = () => (
           </AuthProvider>
         </SettingsProvider>
       </ThemeProvider>
+      <PWAUpdatePrompt
+        onUpdate={() => {
+          if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistration().then((registration) => {
+              if (registration && registration.waiting) {
+                registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+                window.location.reload();
+              }
+            });
+          }
+        }}
+        onDismiss={() => {
+          // Dismiss update prompt
+        }}
+      />
     </TooltipProvider>
   </QueryClientProvider>
 );

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -132,7 +133,7 @@ export default function SocketAIChat() {
       id: '1',
       role: 'system',
       content:
-        'Pilih salah satu template di bawah untuk mulai percakapan dengan AI. Chat ini menggunakan Socket.IO untuk komunikasi real-time.',
+        'Selamat datang! Anda bisa bertanya bebas tentang keuangan dan investasi, atau gunakan template di samping untuk analisis data keuangan Anda. Chat ini menggunakan Socket.IO untuk komunikasi real-time.',
       timestamp: new Date(),
     },
   ]);
@@ -164,10 +165,11 @@ export default function SocketAIChat() {
           | 'overspend'
           | 'goals'
           | 'anomaly'
-          | 'subscriptions',
+          | 'subscriptions'
+          | 'financial-summary'
+          | 'investment-summary'
+          | 'investment-recommendations',
       });
-
-      console.log('✅ AI Response received:', response);
 
       // Add assistant message
       const assistantMessage: ChatMessage = {
@@ -200,26 +202,189 @@ export default function SocketAIChat() {
     const text = inputText.trim();
     if (!text) return;
 
-    // Find matching template
-    const matched = templates.find((t) =>
-      t.keywords.some((k) => text.toLowerCase().includes(k)),
-    );
+    // Add user message
+    const userMessage: ChatMessage = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: text,
+      timestamp: new Date(),
+    };
+    setMessages((prev) => [...prev, userMessage]);
 
-    if (!matched) {
-      const errorMessage: ChatMessage = {
-        id: Date.now().toString(),
-        role: 'system',
+    setIsProcessing(true);
+
+    try {
+      // Check if it matches any template first
+      const matched = templates.find((t) =>
+        t.keywords.some((k) => text.toLowerCase().includes(k)),
+      );
+
+      let response;
+      if (matched) {
+        // Use template-based request
+        response = await requestAI({
+          type: matched.id as
+            | 'insights'
+            | 'recommendations'
+            | 'dashboard'
+            | 'overspend'
+            | 'goals'
+            | 'anomaly'
+            | 'subscriptions'
+            | 'financial-summary'
+            | 'investment-summary'
+            | 'investment-recommendations',
+        });
+      } else {
+        // Check if it's a financial/investment related question
+        const financialKeywords = [
+          'uang',
+          'uang',
+          'keuangan',
+          'finansial',
+          'budget',
+          'anggaran',
+          'tabung',
+          'tabungan',
+          'saving',
+          'investasi',
+          'investment',
+          'saham',
+          'reksadana',
+          'obligasi',
+          'emas',
+          'properti',
+          'crypto',
+          'bitcoin',
+          'pendapatan',
+          'income',
+          'pengeluaran',
+          'expense',
+          'hutang',
+          'debt',
+          'kredit',
+          'credit',
+          'pinjaman',
+          'loan',
+          'asuransi',
+          'insurance',
+          'pensiun',
+          'retirement',
+          'dana darurat',
+          'emergency fund',
+          'inflasi',
+          'inflation',
+          'bunga',
+          'interest',
+          'return',
+          'keuntungan',
+          'rugi',
+          'loss',
+          'profit',
+          'dividen',
+          'dividend',
+          'portfolio',
+          'diversifikasi',
+          'diversification',
+          'risk',
+          'risiko',
+          'volatilitas',
+          'trading',
+          'beli',
+          'jual',
+          'harga',
+          'price',
+          'nilai',
+          'value',
+          'analisis',
+          'analysis',
+          'prediksi',
+          'forecast',
+          'trend',
+          'tren',
+          'market',
+          'pasar',
+          'ekonomi',
+          'economic',
+          'reksadana',
+          'mutual fund',
+          'etf',
+          'index',
+          'indeks',
+          'bonds',
+          'sukuk',
+          'deposito',
+          'deposit',
+          'giro',
+          'current account',
+          'kartu kredit',
+          'credit card',
+          'cicilan',
+          'installment',
+          'kpr',
+          'mortgage',
+          'leasing',
+          'sewa',
+          'rent',
+          'biaya',
+          'cost',
+          'fee',
+          'komisi',
+          'commission',
+        ];
+
+        const isFinancialQuestion = financialKeywords.some((keyword) =>
+          text.toLowerCase().includes(keyword.toLowerCase()),
+        );
+
+        if (isFinancialQuestion) {
+          // Send custom financial question to AI
+          response = await requestAI({
+            type: 'custom-financial-advice',
+            message: text,
+          });
+        } else {
+          // Not a financial question, show guidance
+          const errorMessage: ChatMessage = {
+            id: Date.now().toString(),
+            role: 'system',
+            content:
+              'Saya hanya dapat membantu dengan pertanyaan seputar keuangan dan investasi. Silakan gunakan template di samping atau tanyakan tentang: analisis keuangan, investasi, tabungan, budget, atau topik keuangan lainnya.',
+            timestamp: new Date(),
+          };
+          setMessages((prev) => [...prev, errorMessage]);
+          setInputText('');
+          setIsProcessing(false);
+          return;
+        }
+      }
+
+      // Add assistant message
+      const assistantMessage: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
         content:
-          'Gunakan salah satu template atau ketik kata kunci seperti: "analisis", "hemat", "dashboard".',
+          response.message ||
+          `Berhasil mendapatkan respons dari ${response.model} AI`,
+        data: response.data,
+        timestamp: new Date(),
+        model: response.model,
+      };
+      setMessages((prev) => [...prev, assistantMessage]);
+    } catch (error: any) {
+      console.error('❌ AI request failed:', error);
+
+      const errorMessage: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        role: 'system',
+        content: `Error: ${error.message}`,
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, errorMessage]);
+    } finally {
+      setIsProcessing(false);
       setInputText('');
-      return;
     }
-
-    await handleTemplateClick(matched.id);
-    setInputText('');
   };
 
   const renderMessage = (message: ChatMessage) => {
@@ -501,15 +666,20 @@ export default function SocketAIChat() {
           </div>
 
           <div className="mt-3 space-y-1 text-xs text-muted-foreground">
-            <div>Contoh instruksi akurat:</div>
+            <div>Contoh pertanyaan yang bisa ditanyakan:</div>
             <ul className="list-disc list-inside space-y-1">
+              <li>"Bagaimana cara investasi yang aman untuk pemula?"</li>
               <li>
-                "analisis pengeluaran dan kategori boros 30 hari terakhir"
+                "Apakah reksadana atau saham lebih baik untuk jangka panjang?"
               </li>
-              <li>"rekomendasi penghematan untuk menambah tabungan bulanan"</li>
-              <li>"ringkas dashboard AI dan item belum dibaca"</li>
-              <li>"cek progres goals dan saran percepatan"</li>
-              <li>"deteksi transaksi tidak biasa untuk ditinjau"</li>
+              <li>"Berapa persen gaji yang ideal untuk tabungan?"</li>
+              <li>"Cara mengatur budget bulanan yang efektif"</li>
+              <li>
+                "Analisis pengeluaran dan kategori boros 30 hari terakhir"
+              </li>
+              <li>"Rekomendasi penghematan untuk menambah tabungan"</li>
+              <li>"Bagaimana cara diversifikasi portfolio investasi?"</li>
+              <li>"Tips mengelola hutang dan cicilan"</li>
             </ul>
           </div>
 
@@ -524,7 +694,7 @@ export default function SocketAIChat() {
                   id: '1',
                   role: 'system',
                   content:
-                    'Pilih salah satu template di bawah untuk mulai percakapan dengan AI. Chat ini menggunakan Socket.IO untuk komunikasi real-time.',
+                    'Selamat datang! Anda bisa bertanya bebas tentang keuangan dan investasi, atau gunakan template di samping untuk analisis data keuangan Anda. Chat ini menggunakan Socket.IO untuk komunikasi real-time.',
                   timestamp: new Date(),
                 },
               ])
@@ -539,7 +709,7 @@ export default function SocketAIChat() {
       <div className="lg:col-span-3">
         <div className="flex gap-2">
           <Input
-            placeholder="Ketik instruksi (akan dipetakan ke template)…"
+            placeholder="Tanyakan tentang keuangan, investasi, atau gunakan template..."
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
             onKeyDown={(e) => {

@@ -13,10 +13,21 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { PlusCircle, Search, Calendar, AlertCircle } from 'lucide-react';
+import {
+  PlusCircle,
+  Search,
+  Calendar,
+  AlertCircle,
+  Edit,
+  Trash2,
+  MoreVertical,
+  Crown,
+} from 'lucide-react';
 import {
   usePaginatedTransactionsQuery,
   useCreateTransactionMutation,
+  useUpdateTransactionMutation,
+  useDeleteTransactionMutation,
   Transaction,
   validateTransactionName,
   PaginatedTransactionsResponse,
@@ -33,9 +44,29 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Separator } from '@/components/ui/separator';
 import { useCurrencyFormatter } from '@/lib/currency';
 import TransactionOCRUpload from '@/components/transactions/TransactionOCRUpload';
+import FeatureGate from '@/components/subscription/FeatureGate';
+import { useFeatureAccess } from '@/hooks/useFeatureAccess';
+import { useCurrentSubscriptionQuery } from '@/api/subscription';
+import UpgradePrompt from '@/components/subscription/UpgradePrompt';
 
 export default function Transactions() {
   const [page, setPage] = useState(1);
@@ -43,10 +74,18 @@ export default function Transactions() {
   const { data: categories } = useCategoriesQuery();
   const { data: goals } = useGoalsQuery();
   const createTransactionMutation = useCreateTransactionMutation();
+  const updateTransactionMutation = useUpdateTransactionMutation();
+  const deleteTransactionMutation = useDeleteTransactionMutation();
   const { toast } = useToast();
   const { format } = useCurrencyFormatter();
+  const { hasAccess, getPlanFeatures } = useFeatureAccess();
+  const { data: currentSubscription } = useCurrentSubscriptionQuery();
 
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [selectedTransaction, setSelectedTransaction] =
+    useState<Transaction | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<
     'all' | 'income' | 'expense' | 'transfer'
@@ -67,10 +106,18 @@ export default function Transactions() {
     transactionDate: new Date().toISOString().split('T')[0],
     currency: 'IDR',
   });
+  const [editTransaction, setEditTransaction] = useState({
+    description: '',
+    amount: '',
+    categoryId: '',
+    transactionDate: '',
+    currency: 'IDR',
+  });
   const [goalAllocations, setGoalAllocations] = useState<
     Array<{ goalId: string; amount: string }>
   >([]);
   const [validationError, setValidationError] = useState<string>('');
+  const [editValidationError, setEditValidationError] = useState<string>('');
 
   const handleCreateTransaction = async () => {
     if (
@@ -106,7 +153,6 @@ export default function Transactions() {
       setIsCreateDialogOpen(false);
       resetForm();
     } catch (error: unknown) {
-      // Handle validation error untuk nama transaksi unik
       const errorResponse = error as {
         response?: { data?: { error?: string; details?: string } };
       };
@@ -143,11 +189,165 @@ export default function Transactions() {
     setGoalAllocations([]);
   };
 
+  const resetEditForm = () => {
+    setEditTransaction({
+      description: '',
+      amount: '',
+      categoryId: '',
+      transactionDate: '',
+      currency: 'IDR',
+    });
+    setEditValidationError('');
+  };
+
+  const handleEditTransaction = async () => {
+    if (
+      !editTransaction.description ||
+      !editTransaction.amount ||
+      !editTransaction.categoryId ||
+      !selectedTransaction
+    ) {
+      toast({
+        title: 'Error',
+        description: 'Mohon lengkapi semua field yang diperlukan',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      await updateTransactionMutation.mutateAsync({
+        id: selectedTransaction.id,
+        data: {
+          description: editTransaction.description,
+          amount: parseFloat(editTransaction.amount),
+          categoryId: editTransaction.categoryId,
+          transactionDate: editTransaction.transactionDate,
+          currency: editTransaction.currency,
+        },
+      });
+
+      toast({
+        title: 'Berhasil',
+        description: 'Transaksi berhasil diperbarui',
+      });
+
+      setIsEditDialogOpen(false);
+      setSelectedTransaction(null);
+      resetEditForm();
+    } catch (error: unknown) {
+      const errorResponse = error as {
+        response?: { data?: { error?: string; details?: string } };
+      };
+      if (
+        errorResponse?.response?.data?.error ===
+        'Nama transaksi sudah ada untuk kategori ini'
+      ) {
+        toast({
+          title: 'Error',
+          description:
+            errorResponse.response.data.details ||
+            'Nama transaksi sudah ada untuk kategori ini',
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: 'Error',
+          description: 'Gagal memperbarui transaksi',
+          variant: 'destructive',
+        });
+      }
+    }
+  };
+
+  const handleDeleteTransaction = async () => {
+    if (!selectedTransaction) return;
+
+    try {
+      await deleteTransactionMutation.mutateAsync(selectedTransaction.id);
+
+      toast({
+        title: 'Berhasil',
+        description: 'Transaksi berhasil dihapus',
+      });
+
+      setIsDeleteDialogOpen(false);
+      setSelectedTransaction(null);
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Gagal menghapus transaksi',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const openEditDialog = (transaction: Transaction) => {
+    setSelectedTransaction(transaction);
+    setEditTransaction({
+      description: transaction.description || '',
+      amount: transaction.amount.toString(),
+      categoryId: transaction.categoryId || '',
+      transactionDate: transaction.transactionDate.split('T')[0],
+      currency: transaction.currency,
+    });
+    setIsEditDialogOpen(true);
+  };
+
+  const openDeleteDialog = (transaction: Transaction) => {
+    setSelectedTransaction(transaction);
+    setIsDeleteDialogOpen(true);
+  };
+
   // Fungsi untuk validasi real-time menggunakan API dengan debounce
   const checkTransactionName = useCallback(
     async (description: string, categoryId: string) => {
       if (!description || !categoryId) {
         setValidationError('');
+        return;
+      }
+
+      try {
+        console.log('Validating transaction name:', description, 'for category:', categoryId);
+        const validationResult = await validateTransactionName(
+          description,
+          categoryId,
+        );
+
+        console.log('Validation result:', validationResult);
+
+        if (!validationResult.isValid) {
+          setValidationError(validationResult.message);
+        } else {
+          setValidationError('');
+        }
+      } catch (error) {
+        console.error('Validation error:', error);
+        setValidationError('');
+      }
+    },
+    [],
+  );
+
+  // Fungsi untuk validasi real-time untuk form edit
+  const checkEditTransactionName = useCallback(
+    async (
+      description: string,
+      categoryId: string,
+      currentTransactionId?: string,
+    ) => {
+      if (!description || !categoryId) {
+        setEditValidationError('');
+        return;
+      }
+
+      // Skip validation if it's the same transaction (no changes to name/category)
+      if (
+        selectedTransaction &&
+        description === selectedTransaction.description &&
+        categoryId === selectedTransaction.categoryId
+      ) {
+        setEditValidationError('');
         return;
       }
 
@@ -158,15 +358,15 @@ export default function Transactions() {
         );
 
         if (!validationResult.isValid) {
-          setValidationError(validationResult.message);
+          setEditValidationError(validationResult.message);
         } else {
-          setValidationError('');
+          setEditValidationError('');
         }
       } catch (error) {
-        setValidationError('');
+        setEditValidationError('');
       }
     },
-    [],
+    [selectedTransaction],
   );
 
   // Debounce effect untuk validasi
@@ -187,6 +387,30 @@ export default function Transactions() {
     checkTransactionName,
   ]);
 
+  // Debounce effect untuk validasi form edit
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (
+        editTransaction.description &&
+        editTransaction.categoryId &&
+        selectedTransaction
+      ) {
+        checkEditTransactionName(
+          editTransaction.description,
+          editTransaction.categoryId,
+          selectedTransaction.id,
+        );
+      }
+    }, 500); // Debounce 500ms
+
+    return () => clearTimeout(timeoutId);
+  }, [
+    editTransaction.description,
+    editTransaction.categoryId,
+    selectedTransaction,
+    checkEditTransactionName,
+  ]);
+
   // Reset halaman saat filter atau pencarian berubah
   useEffect(() => {
     setPage(1);
@@ -203,7 +427,28 @@ export default function Transactions() {
   }, [paginated?.pagination.totalPages, page]);
 
   const items = paginated?.items || [];
-  const filteredTransactions = items; // Disaring di server melalui query params
+  const filteredTransactions = items;
+
+  // Cek batasan transaksi berdasarkan subscription
+  const planFeatures = getPlanFeatures();
+  const maxTransactions = planFeatures.maxTransactions;
+
+  // Hitung transaksi dalam 1 bulan terakhir untuk Free plan
+  // Hitung dari data yang sudah ada di halaman dengan filter bulan ini
+  const currentMonth = new Date().getMonth();
+  const currentYear = new Date().getFullYear();
+  const currentTransactionCount = items.filter((transaction) => {
+    const transactionDate = new Date(transaction.transactionDate);
+    return (
+      transactionDate.getMonth() === currentMonth &&
+      transactionDate.getFullYear() === currentYear
+    );
+  }).length;
+
+  // Untuk Free plan: batas 30 transaksi per bulan
+  // Untuk Premium/Enterprise: unlimited (maxTransactions = null)
+  const canCreateTransaction =
+    maxTransactions === null || currentTransactionCount < maxTransactions;
 
   const formatCurrency = (amount: number) => format(amount);
 
@@ -261,24 +506,60 @@ export default function Transactions() {
           <p className="text-muted-foreground mt-2">
             Kelola pemasukan dan pengeluaran Anda
           </p>
+          {maxTransactions ? (
+            <div className="mt-2 flex items-center gap-2">
+              <Badge
+                variant={
+                  currentTransactionCount >= maxTransactions
+                    ? 'destructive'
+                    : 'outline'
+                }
+                className="text-xs"
+              >
+                {currentTransactionCount} / {maxTransactions} transaksi per
+                bulan
+              </Badge>
+              {currentTransactionCount >= maxTransactions && (
+                <Badge
+                  variant="default"
+                  className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white text-xs px-2 py-1 animate-pulse"
+                >
+                  <Crown className="h-3 w-3 mr-1" />
+                  Premium
+                </Badge>
+              )}
+            </div>
+          ) : (
+            <div className="mt-2">
+              <Badge variant="default" className="text-xs">
+                Unlimited transaksi
+              </Badge>
+            </div>
+          )}
         </div>
 
         <div className="flex gap-3">
           <TransactionOCRUpload
             onTransactionCreated={() => {
-              // Refresh transactions when new transaction is created
               window.location.reload();
             }}
           />
+
           <Dialog
             open={isCreateDialogOpen}
             onOpenChange={setIsCreateDialogOpen}
           >
             <DialogTrigger asChild>
               <motion.div whileTap={{ scale: 0.95 }}>
-                <Button onClick={resetForm}>
+                <Button
+                  onClick={resetForm}
+                  disabled={!canCreateTransaction}
+                  className="w-full"
+                >
                   <PlusCircle className="h-4 w-4 mr-2" />
-                  Tambah Transaksi
+                  {canCreateTransaction
+                    ? 'Tambah Transaksi'
+                    : 'Upgrade ke Premium untuk Unlimited'}
                 </Button>
               </motion.div>
             </DialogTrigger>
@@ -316,7 +597,7 @@ export default function Transactions() {
 
                 <div className="space-y-2">
                   <Label htmlFor="amount">Jumlah</Label>
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-col items-start justify-start gap-3">
                     <Input
                       id="amount"
                       type="number"
@@ -484,6 +765,163 @@ export default function Transactions() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+
+          {/* Edit Transaction Dialog */}
+          <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Edit Transaksi</DialogTitle>
+                <DialogDescription>
+                  Perbarui informasi transaksi
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-description">Deskripsi</Label>
+                  <Input
+                    id="edit-description"
+                    placeholder="Masukkan deskripsi transaksi"
+                    value={editTransaction.description}
+                    onChange={(e) => {
+                      setEditTransaction({
+                        ...editTransaction,
+                        description: e.target.value,
+                      });
+                    }}
+                    className={editValidationError ? 'border-destructive' : ''}
+                  />
+                  {editValidationError && (
+                    <div className="flex items-center space-x-2">
+                      <AlertCircle className="h-4 w-4 text-destructive" />
+                      <p className="text-sm text-destructive">
+                        {editValidationError}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="edit-amount">Jumlah</Label>
+                  <div className="flex flex-col items-start justify-start gap-3">
+                    <Input
+                      id="edit-amount"
+                      type="number"
+                      step="0.01"
+                      placeholder="0"
+                      value={editTransaction.amount}
+                      onChange={(e) =>
+                        setEditTransaction({
+                          ...editTransaction,
+                          amount: e.target.value,
+                        })
+                      }
+                      className="flex-1 min-w-0"
+                    />
+                    {editTransaction.amount && (
+                      <span className="text-[12px] text-muted-foreground whitespace-nowrap">
+                        {format(Math.abs(Number(editTransaction.amount) || 0))}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="edit-category">Kategori</Label>
+                  <Select
+                    value={editTransaction.categoryId}
+                    onValueChange={(value) => {
+                      setEditTransaction({
+                        ...editTransaction,
+                        categoryId: value,
+                      });
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Pilih kategori" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categories?.map((category) => (
+                        <SelectItem key={category.id} value={category.id}>
+                          <div className="flex items-center space-x-2">
+                            <span>{category.icon}</span>
+                            <span>{category.name}</span>
+                            <Badge variant="outline" className="text-xs">
+                              {category.type === 'income'
+                                ? 'Pemasukan'
+                                : category.type === 'expense'
+                                ? 'Pengeluaran'
+                                : 'Transfer'}
+                            </Badge>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="edit-date">Tanggal</Label>
+                  <DatePicker
+                    id="edit-date"
+                    value={editTransaction.transactionDate}
+                    onChange={(val) =>
+                      setEditTransaction({
+                        ...editTransaction,
+                        transactionDate: val,
+                      })
+                    }
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => setIsEditDialogOpen(false)}
+                >
+                  Batal
+                </Button>
+                <Button
+                  onClick={handleEditTransaction}
+                  disabled={
+                    updateTransactionMutation.isPending || !!editValidationError
+                  }
+                >
+                  {updateTransactionMutation.isPending
+                    ? 'Menyimpan...'
+                    : 'Perbarui Transaksi'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* Delete Confirmation Dialog */}
+          <AlertDialog
+            open={isDeleteDialogOpen}
+            onOpenChange={setIsDeleteDialogOpen}
+          >
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Konfirmasi Hapus</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Apakah Anda yakin ingin menghapus transaksi "
+                  {selectedTransaction?.description}"? Tindakan ini tidak dapat
+                  dibatalkan.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Batal</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleDeleteTransaction}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  disabled={deleteTransactionMutation.isPending}
+                >
+                  {deleteTransactionMutation.isPending
+                    ? 'Menghapus...'
+                    : 'Hapus'}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </motion.div>
 
@@ -625,6 +1063,35 @@ export default function Transactions() {
                                   {formatCurrency(Math.abs(transaction.amount))}
                                 </p>
                               </div>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 w-8 p-0"
+                                  >
+                                    <MoreVertical className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem
+                                    onClick={() => openEditDialog(transaction)}
+                                    className="cursor-pointer"
+                                  >
+                                    <Edit className="h-4 w-4 mr-2" />
+                                    Edit
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={() =>
+                                      openDeleteDialog(transaction)
+                                    }
+                                    className="cursor-pointer text-destructive focus:text-destructive"
+                                  >
+                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    Hapus
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
                             </div>
                           </motion.div>
                         );

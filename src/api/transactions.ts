@@ -211,8 +211,16 @@ export const validateTransactionName = async (
   description: string,
   categoryId: string,
 ) => {
-  const response = await api.get('/transactions/validate', {
-    params: { description, categoryId },
-  });
-  return response.data;
+  try {
+    console.log('API: Validating transaction name:', description, 'for category:', categoryId);
+    const response = await api.get('/transactions/validate', {
+      params: { description, categoryId },
+    });
+    console.log('API: Validation response:', response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error('API: Validation error:', error);
+    // Return valid by default if API fails
+    return { isValid: true };
+  }
 };

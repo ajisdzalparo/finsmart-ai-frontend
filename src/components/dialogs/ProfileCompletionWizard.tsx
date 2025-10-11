@@ -664,9 +664,7 @@ export function ProfileCompletionWizard({
                 <div
                   key={step.id}
                   className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                    index + 1 <= currentStep
-                      ? 'bg-primary scale-125'
-                      : 'bg-muted'
+                    index + 1 <= currentStep ? 'bg-primary' : 'bg-muted'
                   }`}
                 />
               ))}

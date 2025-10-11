@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
 
@@ -9,9 +10,14 @@ interface AIRequest {
     | 'overspend'
     | 'goals'
     | 'anomaly'
-    | 'subscriptions';
+    | 'subscriptions'
+    | 'financial-summary'
+    | 'investment-summary'
+    | 'investment-recommendations'
+    | 'custom-financial-advice';
   model?: 'deepseek' | 'gemini';
   userId: string;
+  message?: string;
 }
 
 interface AIResponse {
@@ -22,7 +28,11 @@ interface AIResponse {
     | 'overspend'
     | 'goals'
     | 'anomaly'
-    | 'subscriptions';
+    | 'subscriptions'
+    | 'financial-summary'
+    | 'investment-summary'
+    | 'investment-recommendations'
+    | 'custom-financial-advice';
   data: any[];
   status: 'success' | 'error';
   message?: string;
@@ -37,7 +47,11 @@ interface AIProgress {
     | 'overspend'
     | 'goals'
     | 'anomaly'
-    | 'subscriptions';
+    | 'subscriptions'
+    | 'financial-summary'
+    | 'investment-summary'
+    | 'investment-recommendations'
+    | 'custom-financial-advice';
   status: 'processing' | 'complete' | 'error';
   message?: string;
   model?: string;
@@ -68,17 +82,14 @@ export const useSocket = () => {
     );
 
     newSocket.on('connect', () => {
-      console.log('🔌 Connected to Socket.IO server');
       setIsConnected(true);
     });
 
     newSocket.on('disconnect', () => {
-      console.log('🔌 Disconnected from Socket.IO server');
       setIsConnected(false);
     });
 
     newSocket.on('connect_error', (error) => {
-      console.error('❌ Socket.IO connection error:', error);
       setIsConnected(false);
     });
 
@@ -114,8 +125,6 @@ export const useSocket = () => {
           userId,
           model: currentModel,
         };
-
-        console.log('🤖 Sending AI request:', fullRequest);
 
         // Set up response handler
         const handleResponse = (response: AIResponse) => {

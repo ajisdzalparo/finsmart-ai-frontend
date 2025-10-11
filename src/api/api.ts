@@ -7,7 +7,13 @@ const api = axios.create({
 
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
-  if (token) config.headers.Authorization = `Bearer ${token}`;
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  } else {
+    config.headers.Authorization = `Bearer ${
+      import.meta.env.VITE_API_BASE_URL
+    }`;
+  }
   const aiModel = localStorage.getItem('app.ai_model');
   if (aiModel) {
     (config.headers as any)['X-AI-Model'] = aiModel;
@@ -15,9 +21,10 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Tangani 401 Unauthorized
 api.interceptors.response.use(
-  (res) => res.data,
+  (res) => {
+    return res.data;
+  },
   (err) => {
     if (err.response?.status === 401) {
       localStorage.removeItem('token');

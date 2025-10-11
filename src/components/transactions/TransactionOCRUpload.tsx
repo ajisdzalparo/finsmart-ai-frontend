@@ -42,6 +42,7 @@ import { useCurrencyFormatter } from '@/lib/currency';
 import { useCategoriesQuery } from '@/api/categories';
 import { useCreateTransactionMutation } from '@/api/transactions';
 import api from '@/api/api';
+import OCRScanButton from './OCRScanButton';
 
 interface ExtractedTransaction {
   id: string;
@@ -116,7 +117,7 @@ export default function TransactionOCRUpload({
         formData.append('file', file);
 
         // Call OCR API
-        const response = await api.post('/transactions/ocr-extract', formData, {
+        const response = await api.post('/ocr/ocr-extract', formData, {
           headers: {
             'Content-Type': 'multipart/form-data',
           },
@@ -347,15 +348,14 @@ export default function TransactionOCRUpload({
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" className="gap-2">
-          <Camera className="h-4 w-4" />
-          Scan Nota
-        </Button>
+        <OCRScanButton />
       </DialogTrigger>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto dark:bg-gray-900 dark:border-gray-700">
         <DialogHeader>
-          <DialogTitle>Scan Nota & Ekstrak Transaksi</DialogTitle>
-          <DialogDescription>
+          <DialogTitle className="dark:text-white">
+            Scan Nota & Ekstrak Transaksi
+          </DialogTitle>
+          <DialogDescription className="dark:text-gray-300">
             Upload foto nota, file gambar, atau file teks untuk mengekstrak
             transaksi secara otomatis
           </DialogDescription>
@@ -364,10 +364,10 @@ export default function TransactionOCRUpload({
         <div className="space-y-6">
           {/* File Upload Area */}
           {!selectedFile && (
-            <Card>
+            <Card className="dark:bg-gray-800 dark:border-gray-700">
               <CardContent className="p-8">
                 <div
-                  className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 text-center hover:border-muted-foreground/50 transition-colors cursor-pointer"
+                  className="border-2 border-dashed border-muted-foreground/25 dark:border-gray-600 rounded-lg p-8 text-center hover:border-muted-foreground/50 dark:hover:border-gray-500 transition-colors cursor-pointer"
                   onDrop={handleDrop}
                   onDragOver={handleDragOver}
                   onClick={() =>
@@ -379,10 +379,10 @@ export default function TransactionOCRUpload({
                       <Upload className="h-8 w-8 text-muted-foreground" />
                     </div>
                     <div>
-                      <h3 className="text-lg font-semibold">
+                      <h3 className="text-lg font-semibold dark:text-white">
                         Upload File Nota
                       </h3>
-                      <p className="text-muted-foreground">
+                      <p className="text-muted-foreground dark:text-gray-300">
                         Drag & drop file atau klik untuk memilih
                       </p>
                     </div>

@@ -94,11 +94,18 @@ interface CompleteProfileResponse {
 export const useCompleteProfileMutation = () => {
   return useMutation({
     mutationFn: async (data: CompleteProfileData) => {
-      const { data: res } = await api.post<CompleteProfileResponse>(
-        '/auth/complete-profile',
-        data,
-      );
-      return res;
+      console.log('Complete profile mutation called with data:', data);
+      try {
+        const { data: res } = await api.post<CompleteProfileResponse>(
+          '/auth/complete-profile',
+          data,
+        );
+        console.log('Complete profile mutation success:', res);
+        return res;
+      } catch (error) {
+        console.error('Complete profile mutation error:', error);
+        throw error;
+      }
     },
   });
 };

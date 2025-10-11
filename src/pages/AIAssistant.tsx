@@ -20,6 +20,8 @@ import { useCurrencyFormatter } from '@/lib/currency';
 import { useToast } from '@/hooks/use-toast';
 import SocketAIChat from '@/components/ai/SocketAIChat';
 import AISchedulerPanel from '@/components/ai/AISchedulerPanel';
+import FeatureGate from '@/components/subscription/FeatureGate';
+import { useFeatureAccess } from '@/hooks/useFeatureAccess';
 
 export default function AIAssistant() {
   const [dashboard, setDashboard] = useState<AIDashboard | null>(null);
@@ -27,6 +29,7 @@ export default function AIAssistant() {
   const [isGenerating, setIsGenerating] = useState(false);
   const { toast } = useToast();
   const { format } = useCurrencyFormatter();
+  const { hasAccess } = useFeatureAccess();
 
   useEffect(() => {
     loadAIDashboard();
@@ -223,8 +226,24 @@ export default function AIAssistant() {
         <TabsList className="grid w-full grid-cols-4 bg-gray-200 dark:bg-gray-800">
           <TabsTrigger value="insights">AI Insights</TabsTrigger>
           <TabsTrigger value="recommendations">Recommendations</TabsTrigger>
-          <TabsTrigger value="realtime">Real-time AI</TabsTrigger>
-          <TabsTrigger value="scheduler">AI Scheduler</TabsTrigger>
+          <FeatureGate
+            feature="ai_chat"
+            requiredPlan="enterprise"
+            className="w-full"
+          >
+            <TabsTrigger value="realtime" className="w-full">
+              Real-time AI
+            </TabsTrigger>
+          </FeatureGate>
+          <FeatureGate
+            feature="ai_scheduler"
+            requiredPlan="enterprise"
+            className="w-full"
+          >
+            <TabsTrigger value="scheduler" className="w-full">
+              AI Scheduler
+            </TabsTrigger>
+          </FeatureGate>
         </TabsList>
 
         <TabsContent value="insights" className="space-y-6">
@@ -493,12 +512,24 @@ export default function AIAssistant() {
 
         {/* Real-time AI Chat dengan Socket.IO */}
         <TabsContent value="realtime" className="space-y-6">
-          <SocketAIChat />
+          <FeatureGate
+            feature="ai_chat"
+            requiredPlan="enterprise"
+            className="w-full"
+          >
+            <SocketAIChat />
+          </FeatureGate>
         </TabsContent>
 
         {/* AI Scheduler */}
         <TabsContent value="scheduler" className="space-y-6">
-          <AISchedulerPanel />
+          <FeatureGate
+            feature="ai_scheduler"
+            requiredPlan="enterprise"
+            className="w-full"
+          >
+            <AISchedulerPanel />
+          </FeatureGate>
         </TabsContent>
       </Tabs>
     </motion.div>

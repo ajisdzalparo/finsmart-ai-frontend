@@ -23,6 +23,7 @@ import {
   ArrowLeftRight,
   RotateCcw,
   Archive,
+  Crown,
 } from 'lucide-react';
 import {
   useCategoriesQuery,
@@ -44,6 +45,9 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import { useFeatureAccess } from '@/hooks/useFeatureAccess';
+import { useCurrentSubscriptionQuery } from '@/api/subscription';
+import UpgradePrompt from '@/components/subscription/UpgradePrompt';
 
 const categoryTypes = [
   {
@@ -109,6 +113,8 @@ export default function Categories() {
   const deleteCategoryMutation = useDeleteCategoryMutation();
   const restoreCategoryMutation = useRestoreCategoryMutation();
   const { toast } = useToast();
+  const { hasAccess, getPlanFeatures } = useFeatureAccess();
+  const { data: currentSubscription } = useCurrentSubscriptionQuery();
 
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
@@ -119,6 +125,16 @@ export default function Categories() {
     color: '#ef4444',
     icon: '🍔',
   });
+
+  // Cek batasan kategori berdasarkan subscription
+  const planFeatures = getPlanFeatures();
+  const maxCategories = planFeatures.maxCategories;
+  const currentCategoryCount = categories?.length || 0;
+
+  // Untuk Free plan: batas 5 kategori
+  // Untuk Premium/Enterprise: unlimited (maxCategories = null)
+  const canCreateCategory =
+    maxCategories === null || currentCategoryCount < maxCategories;
 
   const handleCreateCategory = async () => {
     // Check for duplicate category name and type
@@ -300,6 +316,35 @@ export default function Categories() {
           <p className="text-muted-foreground mt-2">
             Kelola kategori pemasukan dan pengeluaran Anda
           </p>
+          {maxCategories ? (
+            <div className="mt-2 flex items-center gap-2">
+              <Badge
+                variant={
+                  currentCategoryCount >= maxCategories
+                    ? 'destructive'
+                    : 'outline'
+                }
+                className="text-xs"
+              >
+                {currentCategoryCount} / {maxCategories} kategori
+              </Badge>
+              {currentCategoryCount >= maxCategories && (
+                <Badge
+                  variant="default"
+                  className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white text-xs px-2 py-1 animate-pulse"
+                >
+                  <Crown className="h-3 w-3 mr-1" />
+                  Premium
+                </Badge>
+              )}
+            </div>
+          ) : (
+            <div className="mt-2">
+              <Badge variant="default" className="text-xs">
+                Unlimited kategori
+              </Badge>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center space-x-4">
@@ -325,10 +370,22 @@ export default function Categories() {
             onOpenChange={setIsCreateDialogOpen}
           >
             <DialogTrigger asChild>
-              <Button onClick={resetForm}>
-                <Plus className="h-4 w-4 mr-2" />
-                Tambah Kategori
-              </Button>
+              <UpgradePrompt
+                feature="categories"
+                currentLimit={currentCategoryCount}
+                maxLimit={maxCategories || 5}
+              >
+                <Button
+                  onClick={resetForm}
+                  disabled={!canCreateCategory}
+                  className="w-full"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  {canCreateCategory
+                    ? 'Tambah Kategori'
+                    : 'Upgrade ke Premium untuk Unlimited'}
+                </Button>
+              </UpgradePrompt>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>

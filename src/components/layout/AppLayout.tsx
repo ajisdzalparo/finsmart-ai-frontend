@@ -129,7 +129,7 @@ export default function AppLayout() {
                         className={cn(
                           'text-primary/80 hover:text-primary hover:bg-primary/10 transition-all duration-200',
                           active &&
-                            'text-primary bg-primary/15 shadow-sm border-l-2 border-primary',
+                            'text-primary bg-primary/15 shadow-sm border-b-2 border-primary',
                         )}
                       >
                         <NavLink to={item.href}>
@@ -158,7 +158,7 @@ export default function AppLayout() {
                           className={cn(
                             'text-primary/80 hover:text-primary hover:bg-primary/10 transition-all duration-200',
                             active &&
-                              'text-primary bg-primary/15 shadow-sm border-l-2 border-primary',
+                              'text-primary bg-primary/15 shadow-sm border-b-2 border-primary',
                           )}
                         >
                           <NavLink to={item.href}>

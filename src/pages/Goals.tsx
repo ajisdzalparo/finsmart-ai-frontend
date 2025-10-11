@@ -2,7 +2,8 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, BarChart3, Target } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { PlusCircle, BarChart3, Target, Crown } from 'lucide-react';
 import {
   useGoalsQuery,
   useDeleteGoalMutation,
@@ -30,6 +31,10 @@ import {
 } from '@/components/ui/dialog';
 // Tabs dihapus karena tidak digunakan pada halaman ini
 import { useToast } from '@/hooks/use-toast';
+import FeatureGate from '@/components/subscription/FeatureGate';
+import { useFeatureAccess } from '@/hooks/useFeatureAccess';
+import { useCurrentSubscriptionQuery } from '@/api/subscription';
+import UpgradePrompt from '@/components/subscription/UpgradePrompt';
 
 export default function Goals() {
   const [showGoalModal, setShowGoalModal] = useState(false);
@@ -52,6 +57,17 @@ export default function Goals() {
   const addMoneyMutation = useAddMoneyToGoalMutation();
   const createGoalMutation = useCreateGoalMutation();
   const { toast } = useToast();
+  const { hasAccess, getPlanFeatures } = useFeatureAccess();
+  const { data: currentSubscription } = useCurrentSubscriptionQuery();
+
+  // Cek batasan goals berdasarkan subscription
+  const planFeatures = getPlanFeatures();
+  const maxGoals = planFeatures.maxGoals;
+  const currentGoalCount = goals?.length || 0;
+
+  // Untuk Free plan: batas 2 goals
+  // Untuk Premium/Enterprise: unlimited (maxGoals = null)
+  const canCreateGoal = maxGoals === null || currentGoalCount < maxGoals;
 
   const openGoalModal = (goal?: Goal) => {
     setSelectedGoal(goal || null);
@@ -132,78 +148,119 @@ export default function Goals() {
     >
       {/* Header */}
       <motion.div
-        className="flex justify-between items-center bg-card border border-border rounded-xl p-4 md:p-6 shadow-sm"
+        className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0"
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.1 }}
       >
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">
+        <div className="space-y-2">
+          <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
+            <Target className="h-8 w-8 text-primary" />
             Tujuan Keuangan
           </h1>
-          <p className="text-muted-foreground mt-2">
+          <p className="text-muted-foreground">
             Atur dan pantau tujuan tabungan Anda untuk raih impian.
           </p>
+          {maxGoals ? (
+            <div className="mt-2 flex items-center gap-2">
+              <Badge
+                variant={
+                  currentGoalCount >= maxGoals ? 'destructive' : 'outline'
+                }
+                className="text-xs"
+              >
+                {currentGoalCount} / {maxGoals} tujuan
+              </Badge>
+              {currentGoalCount >= maxGoals && (
+                <Badge
+                  variant="default"
+                  className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white text-xs px-2 py-1 animate-pulse"
+                >
+                  <Crown className="h-3 w-3 mr-1" />
+                  Premium
+                </Badge>
+              )}
+            </div>
+          ) : (
+            <div className="mt-2">
+              <Badge variant="default" className="text-xs">
+                Unlimited tujuan
+              </Badge>
+            </div>
+          )}
         </div>
-        <div className="flex gap-2">
-          <motion.div whileTap={{ scale: 0.95 }}>
-            <Button variant="outline" onClick={() => setShowInsights(true)}>
-              <BarChart3 className="h-4 w-4 mr-2" />
-              Insight
-            </Button>
-          </motion.div>
-          <motion.div whileTap={{ scale: 0.95 }}>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={() => setShowInsights(true)}>
+            <BarChart3 className="h-4 w-4 mr-2" />
+            Insight
+          </Button>
+          <FeatureGate feature="basic_goals" requiredPlan="free">
             <Button variant="outline" onClick={() => setShowQuickCreate(true)}>
               <Target className="h-4 w-4 mr-2" />
               Buat Cepat
             </Button>
-          </motion.div>
-          <motion.div whileTap={{ scale: 0.95 }}>
+          </FeatureGate>
+          <UpgradePrompt
+            feature="goals"
+            currentLimit={currentGoalCount}
+            maxLimit={maxGoals || 2}
+          >
             <Button
               onClick={() => openGoalModal()}
-              className="bg-primary shadow-primary hover:shadow-elevated"
+              disabled={!canCreateGoal}
+              className="bg-primary hover:bg-primary/90"
             >
               <PlusCircle className="h-4 w-4 mr-2" />
-              Tambah Tujuan
+              {canCreateGoal
+                ? 'Tambah Tujuan'
+                : 'Upgrade ke Premium untuk Unlimited'}
             </Button>
-          </motion.div>
+          </UpgradePrompt>
         </div>
       </motion.div>
 
       {/* Goals Overview */}
-      {goals.length === 0 ? (
-        <EmptyGoalsState onCreateGoal={() => openGoalModal()} />
-      ) : (
-        <>
-          <motion.div
-            className="grid gap-6 md:grid-cols-2 lg:grid-cols-3"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.3 }}
-          >
-            {goals.map((goal, index) => (
-              <motion.div
-                key={goal.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: 0.4 + index * 0.1 }}
-              >
-                <GoalProgressCard
-                  goal={goal}
-                  onAddMoney={openSmartProgress}
-                  onEdit={openGoalModal}
-                  onDelete={openDeleteModal}
-                  onViewDetails={openDetailModal}
-                  isDeleting={deleteGoalMutation.isPending}
-                />
-              </motion.div>
-            ))}
-          </motion.div>
+      <div className="space-y-6">
+        {goals.length === 0 ? (
+          <EmptyGoalsState onCreateGoal={() => openGoalModal()} />
+        ) : (
+          <>
+            <motion.div
+              className="grid gap-6 md:grid-cols-2 lg:grid-cols-3"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.3 }}
+            >
+              {goals.map((goal, index) => (
+                <motion.div
+                  key={goal.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: 0.4 + index * 0.1 }}
+                >
+                  <GoalProgressCard
+                    goal={goal}
+                    onAddMoney={openSmartProgress}
+                    onEdit={openGoalModal}
+                    onDelete={openDeleteModal}
+                    onViewDetails={openDetailModal}
+                    isDeleting={deleteGoalMutation.isPending}
+                  />
+                </motion.div>
+              ))}
+            </motion.div>
 
-          {/* Goals Summary */}
-          <GoalsSummary goals={goals} />
-        </>
-      )}
+            {/* Goals Summary */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.5 }}
+            >
+              <GoalsSummary goals={goals} />
+            </motion.div>
+          </>
+        )}
+      </div>
 
       {/* Modals */}
       <GoalDetailModal
@@ -229,9 +286,11 @@ export default function Goals() {
 
       {/* Quick Goal Creation Modal */}
       <Dialog open={showQuickCreate} onOpenChange={setShowQuickCreate}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto dark:bg-gray-900 dark:border-gray-700">
           <DialogHeader>
-            <DialogTitle>Buat Goal Baru</DialogTitle>
+            <DialogTitle className="dark:text-white">
+              Buat Goal Baru
+            </DialogTitle>
           </DialogHeader>
           <QuickGoalCreation onGoalCreate={handleQuickGoalCreate} />
         </DialogContent>
@@ -239,9 +298,11 @@ export default function Goals() {
 
       {/* Smart Goal Progress Modal */}
       <Dialog open={showSmartProgress} onOpenChange={setShowSmartProgress}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto dark:bg-gray-900 dark:border-gray-700">
           <DialogHeader>
-            <DialogTitle>Tambah Progres Tujuan</DialogTitle>
+            <DialogTitle className="dark:text-white">
+              Tambah Progres Tujuan
+            </DialogTitle>
           </DialogHeader>
           {selectedGoal && (
             <SmartGoalProgress
@@ -255,9 +316,11 @@ export default function Goals() {
 
       {/* Goals Insights Modal */}
       <Dialog open={showInsights} onOpenChange={setShowInsights}>
-        <DialogContent className="max-w-6xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto scrollbar-hide dark:bg-gray-900 dark:border-gray-700">
           <DialogHeader>
-            <DialogTitle>Insight & Analitik Tujuan</DialogTitle>
+            <DialogTitle className="dark:text-white">
+              Insight & Analitik Tujuan
+            </DialogTitle>
           </DialogHeader>
           <GoalInsights goals={goals} />
         </DialogContent>
@@ -268,9 +331,11 @@ export default function Goals() {
         open={showContributionSuccess}
         onOpenChange={setShowContributionSuccess}
       >
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto dark:bg-gray-900 dark:border-gray-700">
           <DialogHeader>
-            <DialogTitle>Kontribusi Berhasil!</DialogTitle>
+            <DialogTitle className="dark:text-white">
+              Kontribusi Berhasil!
+            </DialogTitle>
           </DialogHeader>
           {selectedGoal && lastContribution && (
             <GoalContributionSuccess

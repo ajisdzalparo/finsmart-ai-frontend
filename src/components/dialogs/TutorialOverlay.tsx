@@ -122,7 +122,7 @@ export function TutorialOverlay({
                 key={index}
                 className={`w-4 h-4 rounded-full transition-all duration-500 ${
                   index <= currentStep
-                    ? 'bg-gradient-primary scale-110'
+                    ? 'bg-gradient-primary'
                     : 'bg-muted hover:bg-muted/80'
                 }`}
               />
